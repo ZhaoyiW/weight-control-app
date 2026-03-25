@@ -1,0 +1,355 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { ChevronLeft, ChevronRight, Trash2, Plus, Flame, Copy, Pencil, Check, X, Utensils } from 'lucide-react'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { today, formatDate } from '@/lib/utils'
+import AddMealSheet from './AddMealSheet'
+import DatePicker from '@/components/ui/DatePicker'
+
+interface FoodItem {
+  id: number
+  name: string
+  servingUnit: string
+  servingAmount: number
+  kcalPerServing: number
+}
+
+interface MealEntry {
+  id: number
+  date: string
+  mealType: string
+  foodId: number
+  food: FoodItem
+  quantity: number
+  kcal: number
+}
+
+const MEAL_TYPES = [
+  { key: 'breakfast', label: 'Breakfast', emoji: '🍳' },
+  { key: 'lunch', label: 'Lunch', emoji: '🥗' },
+  { key: 'dinner', label: 'Dinner', emoji: '🍝' },
+  { key: 'snack', label: 'Snacks', emoji: '🍪' },
+]
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().split('T')[0]
+}
+
+export default function MealsView() {
+  const [date, setDate] = useState(today())
+  const [meals, setMeals] = useState<MealEntry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [addSheet, setAddSheet] = useState<{ open: boolean; mealType: string }>({
+    open: false,
+    mealType: 'breakfast',
+  })
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editQty, setEditQty] = useState('')
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+
+  const fetchMeals = useCallback(async (d: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/meals?date=${d}`)
+      const data = await res.json()
+      setMeals(Array.isArray(data) ? data : [])
+    } catch {
+      setMeals([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchMeals(date)
+  }, [date, fetchMeals])
+
+  const handleDelete = async (id: number) => {
+    setMeals((prev) => prev.filter((m) => m.id !== id))
+    await fetch(`/api/meals/${id}`, { method: 'DELETE' })
+  }
+
+  const startEdit = (entry: MealEntry) => {
+    setEditingId(entry.id)
+    setEditQty(String(entry.quantity))
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setEditQty('')
+  }
+
+  const confirmEdit = async (id: number) => {
+    const qty = Number(editQty)
+    if (!editQty || isNaN(qty) || qty <= 0) return
+    await fetch(`/api/meals/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity: qty }),
+    })
+    setEditingId(null)
+    fetchMeals(date)
+  }
+
+  const handleAddMeal = async (mealType: string) => {
+    setAddSheet({ open: true, mealType })
+  }
+
+  const handleMealAdded = () => {
+    setAddSheet({ open: false, mealType: '' })
+    fetchMeals(date)
+  }
+
+  const [copying, setCopying] = useState(false)
+  const [copyMsg, setCopyMsg] = useState('')
+
+  const copyYesterday = async () => {
+    setCopying(true)
+    setCopyMsg('')
+    try {
+      const res = await fetch('/api/meals/copy-yesterday', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date }),
+      })
+      const data = await res.json()
+      if (data.copied === 0) {
+        setCopyMsg('No meals found for yesterday')
+      } else {
+        setCopyMsg(`Copied ${data.copied} items from yesterday`)
+        fetchMeals(date)
+      }
+    } catch {
+      setCopyMsg('Failed, please try again')
+    } finally {
+      setCopying(false)
+      setTimeout(() => setCopyMsg(''), 3000)
+    }
+  }
+
+  const totalKcal = meals.reduce((sum, m) => sum + m.kcal, 0)
+  const isToday = date === today()
+  const isFuture = date > today()
+  const [showCalendar, setShowCalendar] = useState(false)
+
+  return (
+    <div className="max-w-md mx-auto px-4 pt-6">
+      {/* Date selector */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setDate(addDays(date, -1))}
+            className="p-2 rounded-xl hover:bg-card border border-transparent hover:border-border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            <ChevronLeft size={22} className="text-text" />
+          </button>
+          <button className="flex-1 text-center min-h-[44px] flex items-center justify-center" onClick={() => setShowCalendar(true)}>
+            <p className="text-2xl font-bold text-text">{isToday ? 'Today' : formatDate(date)}</p>
+          </button>
+          <button
+            onClick={() => setDate(addDays(date, 1))}
+            disabled={isFuture}
+            className="p-2 rounded-xl hover:bg-card border border-transparent hover:border-border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center disabled:opacity-30"
+          >
+            <ChevronRight size={22} className="text-text" />
+          </button>
+        </div>
+        {!isToday && (
+          <button onClick={() => setDate(today())} className="block mx-auto text-xs text-primary mt-1">
+            Back to today
+          </button>
+        )}
+      </div>
+
+      {/* Total */}
+      <div className="bg-primary/10 rounded-2xl border border-primary/20 p-4 mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Utensils size={18} className="text-primary" />
+          <span className="font-medium text-text">Total Intake</span>
+        </div>
+        <span className="font-bold text-text text-lg">{totalKcal} kcal</span>
+      </div>
+
+      {/* Pie chart */}
+      {totalKcal > 0 && (() => {
+        const pieData = MEAL_TYPES
+          .map(({ key, label, emoji }) => ({
+            name: emoji + ' ' + label,
+            value: meals.filter((m) => m.mealType === key).reduce((s, e) => s + e.kcal, 0),
+          }))
+          .filter((d) => d.value > 0)
+        const COLORS = ['#c4a882', '#9b8ea0', '#a8b5a2', '#c4847a']
+        return (
+          <div className="bg-card rounded-2xl border border-border shadow-sm px-4 py-5 mb-3">
+            <div className="flex items-center">
+              <ResponsiveContainer width={160} height={160}>
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={42} outerRadius={68} dataKey="value" strokeWidth={0}>
+                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val) => [`${val} kcal`]}
+                    contentStyle={{ fontSize: 11, borderRadius: 10, border: '1px solid #e8e4df' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex-1 space-y-1.5 ml-2">
+                {pieData.map((d, i) => (
+                  <div key={d.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                      <span className="text-xs text-muted">{d.name}</span>
+                    </div>
+                    <span className="text-xs font-medium text-text">{Math.round(d.value / totalKcal * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Copy yesterday */}
+      <div className="flex items-center justify-between mb-5">
+        <button
+          onClick={copyYesterday}
+          disabled={copying}
+          className="flex items-center gap-1.5 text-xs text-muted font-medium bg-card border border-border px-3 py-2 rounded-xl disabled:opacity-50 hover:border-primary/40 transition-colors"
+        >
+          <Copy size={13} />
+          {copying ? 'Copying…' : 'Copy yesterday\'s meals'}
+        </button>
+        {copyMsg && <p className="text-xs text-muted">{copyMsg}</p>}
+      </div>
+
+      {loading ? (
+        <div className="text-center text-muted py-12">Loading…</div>
+      ) : (
+        <div className="space-y-4 pb-28">
+          {MEAL_TYPES.map(({ key, label, emoji }) => {
+            const entries = meals.filter((m) => m.mealType === key)
+            const sectionKcal = entries.reduce((s, e) => s + e.kcal, 0)
+            const isExpanded = expanded[key]
+
+            return (
+              <div key={key} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3">
+                  <button
+                    onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    className="flex items-center gap-2 flex-1 min-w-0"
+                  >
+                    <span className="text-lg">{emoji}</span>
+                    <span className="font-semibold text-text">{label}</span>
+                    {entries.length > 0 && (
+                      <span className="text-xs text-muted">· {entries.length} items</span>
+                    )}
+                  </button>
+                  <div className="flex items-center gap-2 ml-2">
+                    <span className="text-sm text-muted">{sectionKcal} kcal</span>
+                    <button
+                      onClick={() => handleAddMeal(key)}
+                      className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors text-primary"
+                    >
+                      <Plus size={18} />
+                    </button>
+                    <ChevronRight
+                      size={16}
+                      className={`text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    />
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <>
+                <div className="divide-y divide-border border-t border-border">
+                  {entries.map((entry) => (
+                    <div key={entry.id} className="flex items-center justify-between px-4 py-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text truncate">{entry.food.name}</p>
+                        {editingId === entry.id ? (
+                          <div className="flex items-center gap-2 mt-1">
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              value={editQty}
+                              onChange={(e) => setEditQty(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && confirmEdit(entry.id)}
+                              className="w-20 border border-border rounded-lg px-2 py-1 text-xs text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                              autoFocus
+                            />
+                            <span className="text-xs text-muted">{entry.food.servingUnit}</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted">
+                            {entry.quantity} {entry.food.servingUnit} · {entry.kcal} kcal
+                          </p>
+                        )}
+                      </div>
+                      {editingId === entry.id ? (
+                        <div className="flex items-center gap-1 ml-3">
+                          <button
+                            onClick={() => confirmEdit(entry.id)}
+                            className="p-2 rounded-lg hover:bg-primary/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                          >
+                            <Check size={16} className="text-primary" />
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="p-2 rounded-lg hover:bg-bg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                          >
+                            <X size={16} className="text-muted" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 ml-3">
+                          <button
+                            onClick={() => startEdit(entry)}
+                            className="p-2 rounded-lg hover:bg-bg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                          >
+                            <Pencil size={15} className="text-muted" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.currentTarget.blur(); handleDelete(entry.id) }}
+                            className="p-2 rounded-lg hover:bg-danger/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                          >
+                            <Trash2 size={16} className="text-danger" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                  </>
+                )}
+
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {addSheet.open && (
+
+        <AddMealSheet
+          date={date}
+          mealType={addSheet.mealType}
+          onClose={() => setAddSheet({ open: false, mealType: '' })}
+          onAdded={handleMealAdded}
+        />
+      )}
+      {showCalendar && (
+        <DatePicker
+          value={date}
+          max={today()}
+          onChange={(d) => setDate(d)}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
+    </div>
+  )
+}
