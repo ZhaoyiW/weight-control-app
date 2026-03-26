@@ -154,7 +154,7 @@ export default function FoodView() {
       {loading ? (
         <div className="text-center text-muted py-12">Loading…</div>
       ) : (
-        <div className="space-y-2 pb-28">
+        <div className="space-y-2 pb-24">
           {/* Local results */}
           {foods.map((food) => (
             <div

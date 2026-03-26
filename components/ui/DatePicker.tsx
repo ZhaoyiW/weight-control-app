@@ -11,7 +11,8 @@ const MONTHS = [
 
 interface DatePickerProps {
   value: string       // YYYY-MM-DD
-  max?: string        // YYYY-MM-DD, defaults to today
+  max?: string        // YYYY-MM-DD
+  min?: string        // YYYY-MM-DD
   onChange: (date: string) => void
   onClose: () => void
 }
@@ -25,12 +26,13 @@ function todayStr(): string {
   return toDateStr(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
-export default function DatePicker({ value, max, onChange, onClose }: DatePickerProps) {
-  const parsed = new Date(value + 'T00:00:00')
-  const [viewYear, setViewYear] = useState(parsed.getFullYear())
-  const [viewMonth, setViewMonth] = useState(parsed.getMonth())
+export default function DatePicker({ value, max, min, onChange, onClose }: DatePickerProps) {
+  const initialDate = value ? new Date(value + 'T00:00:00') : new Date()
+  const [viewYear, setViewYear] = useState(initialDate.getFullYear())
+  const [viewMonth, setViewMonth] = useState(initialDate.getMonth())
 
-  const maxStr = max ?? todayStr()
+  const maxStr = max ?? null
+  const minStr = min ?? null
 
   const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay()
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
@@ -45,12 +47,24 @@ export default function DatePicker({ value, max, onChange, onClose }: DatePicker
     else setViewMonth(m => m + 1)
   }
 
-  const canGoNext = toDateStr(viewYear, viewMonth + 1 > 11 ? 0 : viewMonth + 1, 1) <= maxStr ||
-    (viewMonth === 11 ? toDateStr(viewYear + 1, 0, 1) <= maxStr : false)
+  const nextMonthStart = viewMonth === 11
+    ? toDateStr(viewYear + 1, 0, 1)
+    : toDateStr(viewYear, viewMonth + 1, 1)
+  const canGoNext = !maxStr || nextMonthStart <= maxStr
+
+  const prevMonthStart = viewMonth === 0
+    ? toDateStr(viewYear - 1, 11, 1)
+    : toDateStr(viewYear, viewMonth - 1, 1)
+  const lastDayOfPrevMonth = new Date(viewYear, viewMonth, 0).getDate()
+  const prevMonthEnd = viewMonth === 0
+    ? toDateStr(viewYear - 1, 11, lastDayOfPrevMonth)
+    : toDateStr(viewYear, viewMonth - 1, lastDayOfPrevMonth)
+  const canGoPrev = !minStr || prevMonthEnd >= minStr
 
   const handleDay = (day: number) => {
     const dateStr = toDateStr(viewYear, viewMonth, day)
-    if (dateStr > maxStr) return
+    if (maxStr && dateStr > maxStr) return
+    if (minStr && dateStr < minStr) return
     onChange(dateStr)
     onClose()
   }
@@ -68,7 +82,8 @@ export default function DatePicker({ value, max, onChange, onClose }: DatePicker
         <div className="flex items-center justify-between mb-5">
           <button
             onClick={prevMonth}
-            className="p-2 rounded-xl hover:bg-bg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+            disabled={!canGoPrev}
+            className="p-2 rounded-xl hover:bg-bg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center disabled:opacity-30"
           >
             <ChevronLeft size={20} className="text-muted" />
           </button>
@@ -100,7 +115,7 @@ export default function DatePicker({ value, max, onChange, onClose }: DatePicker
             const dateStr = toDateStr(viewYear, viewMonth, day)
             const isSelected = dateStr === value
             const isToday = dateStr === todayStr()
-            const isDisabled = dateStr > maxStr
+            const isDisabled = (maxStr ? dateStr > maxStr : false) || (minStr ? dateStr < minStr : false)
             return (
               <button
                 key={day}

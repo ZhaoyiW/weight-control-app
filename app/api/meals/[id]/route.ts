@@ -23,7 +23,13 @@ export async function PUT(
       return Response.json({ error: 'Meal entry not found' }, { status: 404 })
     }
 
-    const kcal = (existing.food.kcalPerServing / existing.food.servingAmount) * Number(quantity)
+    let kcal: number
+    if (existing.food) {
+      kcal = (existing.food.kcalPerServing / existing.food.servingAmount) * Number(quantity)
+    } else {
+      // Custom entry: quantity is kcal directly
+      kcal = Number(quantity)
+    }
 
     const entry = await prisma.mealEntry.update({
       where: { id: Number(id) },

@@ -40,7 +40,7 @@ export function calcDailySummary(params: {
   if (profileComplete && weight !== null && profile && age) {
     bmr = Math.round(calcBMR(profile.gender, age, profile.height, weight))
     totalBurn = bmr + exerciseKcal
-    deficit = totalBurn - totalIntake
+    deficit = totalIntake - totalBurn
   }
 
   return {

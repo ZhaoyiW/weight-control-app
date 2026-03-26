@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
         date,
         mealType: m.mealType,
         foodId: m.foodId,
+        customName: m.customName,
         quantity: m.quantity,
         kcal: m.kcal,
       })),

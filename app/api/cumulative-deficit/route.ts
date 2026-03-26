@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       const exercise = exerciseByDate.get(d) ?? 0
       const burn = bmr + exercise
       const intake = intakeByDate.get(d) ?? 0
-      cumulativeDeficit += burn - intake
+      cumulativeDeficit += intake - burn
       days++
     }
 

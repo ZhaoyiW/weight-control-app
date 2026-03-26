@@ -26,9 +26,29 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { date, mealType, foodId, quantity } = body
+    const { date, mealType, foodId, quantity, customName, kcal: customKcal } = body
 
-    if (!date || !mealType || !foodId || quantity === undefined) {
+    if (!date || !mealType) {
+      return Response.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Custom entry: name + kcal directly, no food library item
+    if (customName && customKcal !== undefined) {
+      const entry = await prisma.mealEntry.create({
+        data: {
+          date,
+          mealType,
+          customName,
+          quantity: 1,
+          kcal: Math.round(Number(customKcal)),
+        },
+        include: { food: true },
+      })
+      return Response.json(entry, { status: 201 })
+    }
+
+    // Library entry
+    if (!foodId || quantity === undefined) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 })
     }
 

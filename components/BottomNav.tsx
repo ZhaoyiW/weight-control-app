@@ -4,11 +4,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, UtensilsCrossed, Apple, User, BarChart3 } from 'lucide-react'
 
+export const TAB_VISIT_EVENT = 'app:tab'
+
 const tabs = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/meals', label: 'Meals', icon: UtensilsCrossed },
   { href: '/summary', label: 'Summary', icon: BarChart3 },
-  { href: '/profile', label: 'Profile', icon: User },
+  { href: '/profile', label: 'Health', icon: User },
   { href: '/food', label: 'Food', icon: Apple },
 ]
 
@@ -27,6 +29,7 @@ export default function BottomNav() {
             <Link
               key={href}
               href={href}
+              onClick={() => window.dispatchEvent(new CustomEvent(TAB_VISIT_EVENT, { detail: href }))}
               className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] py-2 transition-colors"
             >
               <Icon

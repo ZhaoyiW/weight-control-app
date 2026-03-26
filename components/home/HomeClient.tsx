@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Scale, Flame, TrendingDown, Dumbbell, ChefHat, X, AlertCircle, ChevronLeft, ChevronRight, Utensils } from 'lucide-react'
 import type { DailySummary } from '@/lib/summary'
 import { formatDate, today } from '@/lib/utils'
+import { TAB_VISIT_EVENT } from '@/components/BottomNav'
 import DatePicker from '@/components/ui/DatePicker'
 
 interface HomeClientProps {
@@ -88,6 +89,29 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
     }
   }, [])
 
+  useEffect(() => {
+    const onTabVisit = (e: Event) => {
+      if ((e as CustomEvent).detail === '/') {
+        const t = today()
+        setDate(t)
+        fetchSummary(t)
+      }
+    }
+    const onVisible = () => {
+      if (!document.hidden) {
+        const t = today()
+        setDate(t)
+        fetchSummary(t)
+      }
+    }
+    window.addEventListener(TAB_VISIT_EVENT, onTabVisit)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener(TAB_VISIT_EVENT, onTabVisit)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [fetchSummary])
+
   const goToDate = useCallback((d: string) => {
     if (d > today()) return // no future dates
     setDate(d)
@@ -135,12 +159,12 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
   const deficitColor =
     summary.deficit === null
       ? 'text-muted'
-      : summary.deficit > 0
+      : summary.deficit < 0
       ? 'text-secondary'
       : 'text-danger'
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-6">
+    <div className="max-w-md mx-auto px-4 pt-6 pb-24">
       {/* Header with date nav */}
       <div className="mb-6">
         <p className="text-muted text-sm text-center">{greeting}</p>
@@ -241,10 +265,10 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <p className={`text-4xl font-bold ${deficitColor}`}>
                     {summary.deficit !== null
-                      ? `${summary.deficit > 0 ? '−' : summary.deficit < 0 ? '+' : ''}${Math.abs(summary.deficit)}`
+                      ? `${summary.deficit > 0 ? '+' : ''}${summary.deficit}`
                       : '—'}
                   </p>
-                  <p className="text-xs text-muted mt-0.5">kcal deficit</p>
+                  <p className="text-xs text-muted mt-0.5">kcal</p>
                   {summary.totalBurn && (
                     <p className="text-xs text-muted mt-1">
                       {summary.totalIntake} / {summary.totalBurn}
@@ -271,7 +295,10 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
 
       {/* Weight / BMR / Exercise row */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-card rounded-2xl border border-border shadow-sm p-4">
+        <button
+          onClick={() => setWeightSheet(true)}
+          className="bg-card rounded-2xl border border-border shadow-sm p-4 text-left active:scale-95 transition-transform"
+        >
           <p className="text-xs text-muted mb-1">⚖️ Weight</p>
           <p className="text-lg font-semibold text-text">
             {summary.weight ? `${summary.weight}` : '—'}
@@ -280,7 +307,7 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
             {summary.weight ? 'kg' : ''}
             {summary.weightEstimated && ' est.'}
           </p>
-        </div>
+        </button>
         <div className="bg-card rounded-2xl border border-border shadow-sm p-4">
           <p className="text-xs text-muted mb-1">🧍‍♀️ BMR</p>
           <p className="text-lg font-semibold text-text">
@@ -288,11 +315,14 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
           </p>
           <p className="text-xs text-muted">{summary.bmr ? 'kcal' : ''}</p>
         </div>
-        <div className="bg-card rounded-2xl border border-border shadow-sm p-4">
+        <button
+          onClick={() => setExerciseSheet(true)}
+          className="bg-card rounded-2xl border border-border shadow-sm p-4 text-left active:scale-95 transition-transform"
+        >
           <p className="text-xs text-muted mb-1">🏃‍♀️ Exercise</p>
           <p className="text-lg font-semibold text-text">{summary.exerciseKcal}</p>
           <p className="text-xs text-muted">kcal</p>
-        </div>
+        </button>
       </div>
 
       {/* Quick actions */}

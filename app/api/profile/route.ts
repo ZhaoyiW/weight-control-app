@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { gender, birthday, height, goalWeight, goalDays } = body
+    const { name, gender, birthday, height, goalWeight, goalDays } = body
 
     if (!gender || !birthday || !height) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 })
@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
 
     const profile = await prisma.userProfile.upsert({
       where: { id: 1 },
-      update: { gender, birthday, height: Number(height), goalWeight: goalWeight ? Number(goalWeight) : null, goalDays: goalDays ? Number(goalDays) : null },
-      create: { id: 1, gender, birthday, height: Number(height), goalWeight: goalWeight ? Number(goalWeight) : null, goalDays: goalDays ? Number(goalDays) : null },
+      update: { name: name || null, gender, birthday, height: Number(height), goalWeight: goalWeight ? Number(goalWeight) : null, goalDays: goalDays ? Number(goalDays) : null },
+      create: { id: 1, name: name || null, gender, birthday, height: Number(height), goalWeight: goalWeight ? Number(goalWeight) : null, goalDays: goalDays ? Number(goalDays) : null },
     })
 
     return Response.json({ ...profile, age: calcAge(birthday) })

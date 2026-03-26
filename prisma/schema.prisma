@@ -9,6 +9,7 @@ datasource db {
 
 model UserProfile {
   id         Int      @id @default(1)
+  name       String?
   gender     String   // "male" | "female"
   birthday   String?  // YYYY-MM-DD
   height     Float    // cm
@@ -44,15 +45,16 @@ model FoodItem {
 }
 
 model MealEntry {
-  id        Int      @id @default(autoincrement())
-  date      String   // YYYY-MM-DD
-  mealType  String   // "breakfast" | "lunch" | "dinner" | "snack"
-  foodId    Int
-  food      FoodItem @relation(fields: [foodId], references: [id])
-  quantity  Float
-  kcal      Float    // snapshot
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          Int       @id @default(autoincrement())
+  date        String    // YYYY-MM-DD
+  mealType    String    // "breakfast" | "lunch" | "dinner" | "snack"
+  foodId      Int?
+  food        FoodItem? @relation(fields: [foodId], references: [id])
+  customName  String?   // for custom entries not in the food library
+  quantity    Float
+  kcal        Float     // snapshot
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([date])
 }

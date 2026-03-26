@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Trash2, Plus, Flame, Copy, Pencil, Check, X, Utensils } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { today, formatDate } from '@/lib/utils'
+import { TAB_VISIT_EVENT } from '@/components/BottomNav'
 import AddMealSheet from './AddMealSheet'
 import DatePicker from '@/components/ui/DatePicker'
 
@@ -19,8 +20,9 @@ interface MealEntry {
   id: number
   date: string
   mealType: string
-  foodId: number
-  food: FoodItem
+  foodId: number | null
+  food: FoodItem | null
+  customName: string | null
   quantity: number
   kcal: number
 }
@@ -66,6 +68,21 @@ export default function MealsView() {
   useEffect(() => {
     fetchMeals(date)
   }, [date, fetchMeals])
+
+  useEffect(() => {
+    const onTabVisit = (e: Event) => {
+      if ((e as CustomEvent).detail === '/meals') setDate(today())
+    }
+    const onVisible = () => {
+      if (!document.hidden) setDate(today())
+    }
+    window.addEventListener(TAB_VISIT_EVENT, onTabVisit)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener(TAB_VISIT_EVENT, onTabVisit)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
 
   const handleDelete = async (id: number) => {
     setMeals((prev) => prev.filter((m) => m.id !== id))
@@ -181,7 +198,7 @@ export default function MealsView() {
             value: meals.filter((m) => m.mealType === key).reduce((s, e) => s + e.kcal, 0),
           }))
           .filter((d) => d.value > 0)
-        const COLORS = ['#c4a882', '#9b8ea0', '#a8b5a2', '#c4847a']
+        const COLORS = ['#E6CFA3', '#B7CDB3', '#8E9AA6', '#D9A5A0']
         return (
           <div className="bg-card rounded-2xl border border-border shadow-sm px-4 py-5 mb-3">
             <div className="flex items-center">
@@ -228,7 +245,7 @@ export default function MealsView() {
       {loading ? (
         <div className="text-center text-muted py-12">Loading…</div>
       ) : (
-        <div className="space-y-4 pb-28">
+        <div className="space-y-4 pb-24">
           {MEAL_TYPES.map(({ key, label, emoji }) => {
             const entries = meals.filter((m) => m.mealType === key)
             const sectionKcal = entries.reduce((s, e) => s + e.kcal, 0)
@@ -269,7 +286,7 @@ export default function MealsView() {
                   {entries.map((entry) => (
                     <div key={entry.id} className="flex items-center justify-between px-4 py-3">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text truncate">{entry.food.name}</p>
+                        <p className="text-sm font-medium text-text truncate">{entry.food?.name ?? entry.customName}</p>
                         {editingId === entry.id ? (
                           <div className="flex items-center gap-2 mt-1">
                             <input
@@ -281,11 +298,11 @@ export default function MealsView() {
                               className="w-20 border border-border rounded-lg px-2 py-1 text-xs text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary/40"
                               autoFocus
                             />
-                            <span className="text-xs text-muted">{entry.food.servingUnit}</span>
+                            <span className="text-xs text-muted">{entry.food ? entry.food.servingUnit : 'kcal'}</span>
                           </div>
                         ) : (
                           <p className="text-xs text-muted">
-                            {entry.quantity} {entry.food.servingUnit} · {entry.kcal} kcal
+                            {entry.food ? `${entry.quantity} ${entry.food.servingUnit} · ` : ''}{entry.kcal} kcal
                           </p>
                         )}
                       </div>
