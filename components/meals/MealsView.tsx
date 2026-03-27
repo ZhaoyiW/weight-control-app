@@ -34,6 +34,61 @@ const MEAL_TYPES = [
   { key: 'snack', label: 'Snacks', emoji: '🍪' },
 ]
 
+// ── Diet assessment ───────────────────────────────────────────────
+
+interface DietInsight {
+  icon: string
+  text: string
+  type: 'positive' | 'neutral' | 'warning'
+}
+
+function analyzeDiet(meals: MealEntry[], totalKcal: number): DietInsight[] | null {
+  if (totalKcal === 0) return null
+
+  const kcalOf = (type: string) => meals.filter(m => m.mealType === type).reduce((s, m) => s + m.kcal, 0)
+  const byType = { breakfast: kcalOf('breakfast'), lunch: kcalOf('lunch'), dinner: kcalOf('dinner'), snack: kcalOf('snack') }
+  const missing = (['breakfast', 'lunch', 'dinner'] as const).filter(t => byType[t] === 0)
+  const insights: DietInsight[] = []
+
+  // 1. Three meals coverage
+  if (missing.length === 0) {
+    insights.push({ icon: '✅', text: 'All three main meals logged — good eating rhythm.', type: 'positive' })
+  } else if (missing.length === 1) {
+    const name = missing[0].charAt(0).toUpperCase() + missing[0].slice(1)
+    insights.push({ icon: '📋', text: `${name} not logged yet today.`, type: 'neutral' })
+  } else if (missing.length >= 2) {
+    insights.push({ icon: '📋', text: `Only ${3 - missing.length} of 3 main meals logged — data may be incomplete.`, type: 'neutral' })
+  }
+
+  // 2. Snack proportion
+  if (byType.snack > 0) {
+    const pct = Math.round(byType.snack / totalKcal * 100)
+    if (pct > 35)
+      insights.push({ icon: '🍪', text: `Snacks make up ${pct}% of today's intake — consider shifting more to main meals.`, type: 'warning' })
+    else if (pct > 20)
+      insights.push({ icon: '🍪', text: `Snacks at ${pct}% of intake — reasonable, but keep an eye on it.`, type: 'neutral' })
+  }
+
+  // 3. One meal dominating
+  for (const type of ['breakfast', 'lunch', 'dinner'] as const) {
+    const pct = Math.round(byType[type] / totalKcal * 100)
+    if (pct > 60)
+      insights.push({ icon: '⚖️', text: `${type.charAt(0).toUpperCase() + type.slice(1)} is ${pct}% of today's calories — spreading intake more evenly supports steadier energy.`, type: 'warning' })
+  }
+
+  // 4. Light breakfast warning
+  if (byType.breakfast > 0 && byType.breakfast < 200 && totalKcal > 800)
+    insights.push({ icon: '🌅', text: `Light breakfast (${byType.breakfast} kcal) — a bigger morning meal can reduce afternoon cravings.`, type: 'neutral' })
+
+  // 5. Very low total
+  if (totalKcal < 1000 && missing.length === 0)
+    insights.push({ icon: '⚠️', text: `Total intake is quite low (${totalKcal} kcal) — make sure all meals are logged.`, type: 'warning' })
+
+  return insights.length > 0 ? insights : null
+}
+
+// ─────────────────────────────────────────────────────────────────
+
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + 'T00:00:00')
   d.setDate(d.getDate() + days)
@@ -246,6 +301,26 @@ export default function MealsView() {
         <div className="text-center text-muted py-12">Loading…</div>
       ) : (
         <div className="space-y-4 pb-24">
+          {(() => {
+            const insights = analyzeDiet(meals, totalKcal)
+            if (!insights) return null
+            return (
+              <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-4">
+                <p className="text-[11px] font-medium text-muted uppercase tracking-wide mb-3">Today's Diet</p>
+                <div className="space-y-2.5">
+                  {insights.map((ins, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <span className="text-sm leading-none mt-0.5 flex-shrink-0">{ins.icon}</span>
+                      <p className={`text-xs leading-relaxed ${
+                        ins.type === 'positive' ? 'text-text' : ins.type === 'warning' ? 'text-[#b8865e]' : 'text-muted'
+                      }`}>{ins.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
           {MEAL_TYPES.map(({ key, label, emoji }) => {
             const entries = meals.filter((m) => m.mealType === key)
             const sectionKcal = entries.reduce((s, e) => s + e.kcal, 0)
