@@ -47,7 +47,10 @@ function targetMonthYear(days: number): string {
 function daysToDateStr(days: number): string {
   const d = new Date()
   d.setDate(d.getDate() + days)
-  return d.toISOString().split('T')[0]
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 // Convert a YYYY-MM-DD date string → days from today (min 1)
@@ -654,8 +657,8 @@ export default function ProfileView() {
 
       {showTargetDatePicker && (
         <DatePicker
-          value={goalDraft.goalDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-          min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+          value={goalDraft.goalDate || daysToDateStr(1)}
+          min={daysToDateStr(1)}
           onChange={(d) => { setGoalDraft((p) => ({ ...p, goalDate: d })); setShowTargetDatePicker(false) }}
           onClose={() => setShowTargetDatePicker(false)}
         />
