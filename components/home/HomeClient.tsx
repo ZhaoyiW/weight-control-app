@@ -64,6 +64,15 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
   const [fetching, setFetching] = useState(false)
 
   useEffect(() => { setGreeting(calcGreeting()) }, [])
+
+  // Server renders with UTC date; correct to local today on mount
+  useEffect(() => {
+    const localToday = today()
+    if (localToday !== date) {
+      setDate(localToday)
+      fetchSummary(localToday)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [weightSheet, setWeightSheet] = useState(false)
   const [exerciseSheet, setExerciseSheet] = useState(false)
   const [weightValue, setWeightValue] = useState(initialSummary.weight?.toString() ?? '')
