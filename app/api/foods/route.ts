@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import { classifyFood } from '@/lib/classify'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -31,16 +30,10 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Auto-classify if no category provided and API key is available
-    let resolvedCategory = category || null
-    if (!resolvedCategory && process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your-api-key-here') {
-      resolvedCategory = await classifyFood(name).catch(() => null)
-    }
-
     const food = await prisma.foodItem.create({
       data: {
         name,
-        category: resolvedCategory,
+        category: category || null,
         servingUnit,
         servingAmount: Number(servingAmount),
         kcalPerServing: Number(kcalPerServing),

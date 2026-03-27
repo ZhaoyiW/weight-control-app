@@ -5,6 +5,14 @@ export const metadata: Metadata = {
   title: "CalTrack",
   description: "Daily calorie & weight tracker",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "CalTrack",
+  },
+  icons: {
+    apple: "/icon_192.png",
+  },
 }
 
 export const viewport: Viewport = {
