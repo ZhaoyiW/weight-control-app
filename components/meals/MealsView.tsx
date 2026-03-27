@@ -301,26 +301,6 @@ export default function MealsView() {
         <div className="text-center text-muted py-12">Loading…</div>
       ) : (
         <div className="space-y-4 pb-24">
-          {(() => {
-            const insights = analyzeDiet(meals, totalKcal)
-            if (!insights) return null
-            return (
-              <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-4">
-                <p className="text-[11px] font-medium text-muted uppercase tracking-wide mb-3">Today's Diet</p>
-                <div className="space-y-2.5">
-                  {insights.map((ins, i) => (
-                    <div key={i} className="flex items-start gap-2.5">
-                      <span className="text-sm leading-none mt-0.5 flex-shrink-0">{ins.icon}</span>
-                      <p className={`text-xs leading-relaxed ${
-                        ins.type === 'positive' ? 'text-text' : ins.type === 'warning' ? 'text-[#b8865e]' : 'text-muted'
-                      }`}>{ins.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
-
           {MEAL_TYPES.map(({ key, label, emoji }) => {
             const entries = meals.filter((m) => m.mealType === key)
             const sectionKcal = entries.reduce((s, e) => s + e.kcal, 0)
@@ -422,6 +402,25 @@ export default function MealsView() {
               </div>
             )
           })}
+          {(() => {
+            const insights = analyzeDiet(meals, totalKcal)
+            if (!insights) return null
+            return (
+              <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-4">
+                <p className="text-[11px] font-medium text-muted uppercase tracking-wide mb-3">Today's Diet</p>
+                <div className="space-y-2.5">
+                  {insights.map((ins, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <span className="text-sm leading-none mt-0.5 flex-shrink-0">{ins.icon}</span>
+                      <p className={`text-xs leading-relaxed ${
+                        ins.type === 'positive' ? 'text-text' : ins.type === 'warning' ? 'text-[#b8865e]' : 'text-muted'
+                      }`}>{ins.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
