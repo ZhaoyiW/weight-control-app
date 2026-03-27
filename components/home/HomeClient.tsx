@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Scale, Flame, TrendingDown, Dumbbell, ChefHat, X, AlertCircle, ChevronLeft, ChevronRight, Utensils } from 'lucide-react'
 import type { DailySummary } from '@/lib/summary'
-import { formatDate, today } from '@/lib/utils'
+import { formatDate, formatDayOfWeek, today } from '@/lib/utils'
 import { TAB_VISIT_EVENT } from '@/components/BottomNav'
 import DatePicker from '@/components/ui/DatePicker'
 
@@ -190,6 +190,7 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
           >
             <span className={`text-2xl font-bold ${fetching ? 'opacity-50' : 'text-text'}`}>
               {isToday ? 'Today' : formatDate(date)}
+              <span className="text-muted"> · {formatDayOfWeek(date)}</span>
             </span>
           </button>
           <button

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Trash2, Plus, Flame, Copy, Pencil, Check, X, Utensils } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import { today, formatDate } from '@/lib/utils'
+import { today, formatDate, formatDayOfWeek } from '@/lib/utils'
 import { TAB_VISIT_EVENT } from '@/components/BottomNav'
 import AddMealSheet from './AddMealSheet'
 import DatePicker from '@/components/ui/DatePicker'
@@ -217,7 +217,10 @@ export default function MealsView() {
             <ChevronLeft size={22} className="text-text" />
           </button>
           <button className="flex-1 text-center min-h-[44px] flex items-center justify-center" onClick={() => setShowCalendar(true)}>
-            <p className="text-2xl font-bold text-text">{isToday ? 'Today' : formatDate(date)}</p>
+            <p className="text-2xl font-bold text-text">
+              {isToday ? 'Today' : formatDate(date)}
+              <span className="text-muted"> · {formatDayOfWeek(date)}</span>
+            </p>
           </button>
           <button
             onClick={() => setDate(addDays(date, 1))}
