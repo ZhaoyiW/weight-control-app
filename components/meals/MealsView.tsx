@@ -51,9 +51,7 @@ function analyzeDiet(meals: MealEntry[], totalKcal: number): DietInsight[] | nul
   const insights: DietInsight[] = []
 
   // 1. Three meals coverage
-  if (missing.length === 0) {
-    insights.push({ icon: '✅', text: 'All three main meals logged — good eating rhythm.', type: 'positive' })
-  } else if (missing.length === 1) {
+  if (missing.length === 1) {
     const name = missing[0].charAt(0).toUpperCase() + missing[0].slice(1)
     insights.push({ icon: '📋', text: `${name} not logged yet today.`, type: 'neutral' })
   } else if (missing.length >= 2) {
