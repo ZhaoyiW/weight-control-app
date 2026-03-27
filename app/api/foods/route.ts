@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
     const foods = await prisma.foodItem.findMany({
       where: {
-        ...(q ? { name: { contains: q } } : {}),
+        ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
         ...(category ? { category } : {}),
       },
       orderBy: [{ name: 'asc' }],
