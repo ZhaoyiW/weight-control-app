@@ -141,25 +141,11 @@ export default function AddMealSheet({ date, mealType, onClose, onAdded }: AddMe
     if (!customName.trim() || !customTotalKcal) return
     setSubmitting(true)
     try {
-      // Create a one-off food item (1 serving = total kcal entered)
-      const createRes = await fetch('/api/foods', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: customName.trim(),
-          servingUnit: 'serving',
-          servingAmount: 1,
-          kcalPerServing: Number(customTotalKcal),
-        }),
-      })
-      const created = await createRes.json()
-
       await fetch('/api/meals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, mealType, foodId: created.id, quantity: 1 }),
+        body: JSON.stringify({ date, mealType, customName: customName.trim(), kcal: Number(customTotalKcal) }),
       })
-
       onAdded()
     } catch {
       // handle error silently
