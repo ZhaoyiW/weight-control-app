@@ -21,16 +21,24 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { date, exerciseKcal } = body
+    const { date, exerciseKcal, restingKcal } = body
 
-    if (!date || exerciseKcal === undefined) {
+    if (!date || (exerciseKcal === undefined && restingKcal === undefined)) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    const data: { exerciseKcal?: number | null; restingKcal?: number | null } = {}
+    if (exerciseKcal !== undefined) data.exerciseKcal = exerciseKcal === null ? null : Number(exerciseKcal)
+    if (restingKcal !== undefined) data.restingKcal = restingKcal === null ? null : Number(restingKcal)
+
     const activity = await prisma.dailyActivity.upsert({
       where: { date },
-      update: { exerciseKcal: Number(exerciseKcal) },
-      create: { date, exerciseKcal: Number(exerciseKcal) },
+      update: data,
+      create: {
+        date,
+        exerciseKcal: exerciseKcal !== undefined && exerciseKcal !== null ? Number(exerciseKcal) : null,
+        restingKcal: restingKcal !== undefined && restingKcal !== null ? Number(restingKcal) : null,
+      },
     })
 
     return Response.json(activity)

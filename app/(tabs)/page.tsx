@@ -1,16 +1,18 @@
 import { prisma } from '@/lib/prisma'
 import { calcDailySummary } from '@/lib/summary'
+import { getTrailing7DayAverages } from '@/lib/activityAverages'
 import { today } from '@/lib/utils'
 import HomeClient from '@/components/home/HomeClient'
 
 export default async function HomePage() {
   const date = today()
 
-  const [profile, weightLog, meals, activity] = await Promise.all([
+  const [profile, weightLog, meals, activity, avgs] = await Promise.all([
     prisma.userProfile.findUnique({ where: { id: 1 } }),
     prisma.weightLog.findUnique({ where: { date } }),
     prisma.mealEntry.findMany({ where: { date } }),
     prisma.dailyActivity.findUnique({ where: { date } }),
+    getTrailing7DayAverages(date),
   ])
 
   let weight = weightLog?.weight ?? null
@@ -28,7 +30,8 @@ export default async function HomePage() {
   }
 
   const totalIntake = meals.reduce((sum: number, m: { kcal: number }) => sum + m.kcal, 0)
-  const exerciseKcal = activity?.exerciseKcal ?? 0
+  const exerciseKcal = activity?.exerciseKcal ?? null
+  const restingKcal = activity?.restingKcal ?? null
 
   const summary = calcDailySummary({
     date,
@@ -36,6 +39,8 @@ export default async function HomePage() {
     weight,
     weightEstimated,
     exerciseKcal,
+    restingKcal,
+    ...avgs,
     totalIntake,
   })
 

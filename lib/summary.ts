@@ -5,7 +5,10 @@ export interface DailySummary {
   weight: number | null
   weightEstimated: boolean
   bmr: number | null
-  exerciseKcal: number
+  restingKcal: number | null
+  exerciseKcal: number | null
+  avgRestingKcal7d: number | null
+  avgExerciseKcal7d: number | null
   totalBurn: number | null
   totalIntake: number
   deficit: number | null
@@ -26,10 +29,16 @@ export function calcDailySummary(params: {
   profile: { gender: string; birthday?: string | null; height: number } | null
   weight: number | null
   weightEstimated: boolean
-  exerciseKcal: number
+  exerciseKcal: number | null
+  restingKcal: number | null
+  avgExerciseKcal7d?: number | null
+  avgRestingKcal7d?: number | null
   totalIntake: number
 }): DailySummary {
-  const { date, profile, weight, weightEstimated, exerciseKcal, totalIntake } = params
+  const {
+    date, profile, weight, weightEstimated, exerciseKcal, restingKcal,
+    avgExerciseKcal7d = null, avgRestingKcal7d = null, totalIntake,
+  } = params
   const age = profile?.birthday ? calcAge(profile.birthday) : null
   const profileComplete = !!(profile?.gender && age && profile?.height)
 
@@ -39,7 +48,14 @@ export function calcDailySummary(params: {
 
   if (profileComplete && weight !== null && profile && age) {
     bmr = Math.round(calcBMR(profile.gender, age, profile.height, weight))
-    totalBurn = bmr + exerciseKcal
+  }
+
+  // Logged resting energy (e.g. from Apple Health) is more accurate than the
+  // formula estimate, so it takes over the burn calc for the day once present.
+  // Unlogged exercise counts as 0 burn, same as before this field became nullable.
+  const restingForBurn = restingKcal ?? bmr
+  if (restingForBurn !== null) {
+    totalBurn = restingForBurn + (exerciseKcal ?? 0)
     deficit = totalIntake - totalBurn
   }
 
@@ -48,7 +64,10 @@ export function calcDailySummary(params: {
     weight,
     weightEstimated,
     bmr,
+    restingKcal,
     exerciseKcal,
+    avgExerciseKcal7d,
+    avgRestingKcal7d,
     totalBurn,
     totalIntake: Math.round(totalIntake),
     deficit: deficit !== null ? Math.round(deficit) : null,

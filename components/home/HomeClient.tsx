@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Scale, Flame, TrendingDown, Dumbbell, ChefHat, X, AlertCircle, ChevronLeft, ChevronRight, Utensils } from 'lucide-react'
+import { Scale, Flame, TrendingDown, Dumbbell, PersonStanding, X, AlertCircle, ChevronLeft, ChevronRight, Utensils } from 'lucide-react'
 import type { DailySummary } from '@/lib/summary'
 import { formatDate, formatDayOfWeek, today } from '@/lib/utils'
 import { TAB_VISIT_EVENT } from '@/components/BottomNav'
@@ -17,6 +17,13 @@ function calcGreeting() {
   if (hour < 12) return '🌅 Good morning'
   if (hour < 18) return '☀️ Good afternoon'
   return '🌙 Good evening'
+}
+
+// Prefill with the logged value if present, else the 7-day average as a suggested default.
+function defaultInputValue(logged: number | null, avg7d: number | null): string {
+  if (logged !== null) return logged.toString()
+  if (avg7d !== null) return avg7d.toString()
+  return ''
 }
 
 function shiftDate(date: string, days: number): string {
@@ -75,8 +82,14 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [weightSheet, setWeightSheet] = useState(false)
   const [exerciseSheet, setExerciseSheet] = useState(false)
+  const [restingSheet, setRestingSheet] = useState(false)
   const [weightValue, setWeightValue] = useState(initialSummary.weight?.toString() ?? '')
-  const [exerciseValue, setExerciseValue] = useState(initialSummary.exerciseKcal.toString())
+  const [exerciseValue, setExerciseValue] = useState(
+    defaultInputValue(initialSummary.exerciseKcal, initialSummary.avgExerciseKcal7d)
+  )
+  const [restingValue, setRestingValue] = useState(
+    defaultInputValue(initialSummary.restingKcal, initialSummary.avgRestingKcal7d)
+  )
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -92,7 +105,8 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       const data: DailySummary = await res.json()
       setSummary(data)
       setWeightValue(data.weight?.toString() ?? '')
-      setExerciseValue(data.exerciseKcal.toString())
+      setExerciseValue(defaultInputValue(data.exerciseKcal, data.avgExerciseKcal7d))
+      setRestingValue(defaultInputValue(data.restingKcal, data.avgRestingKcal7d))
     } finally {
       setFetching(false)
     }
@@ -164,6 +178,25 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       setLoading(false)
     }
   }, [exerciseValue, date, fetchSummary])
+
+  const handleRestingSubmit = useCallback(async () => {
+    if (!restingValue || isNaN(Number(restingValue))) return
+    setLoading(true)
+    try {
+      await fetch('/api/activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, restingKcal: Number(restingValue) }),
+      })
+      setMessage('Resting energy logged!')
+      setRestingSheet(false)
+      fetchSummary(date)
+    } catch {
+      setMessage('Failed to save resting energy')
+    } finally {
+      setLoading(false)
+    }
+  }, [restingValue, date, fetchSummary])
 
   const deficitColor =
     summary.deficit === null
@@ -303,8 +336,8 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
         )
       })()}
 
-      {/* Weight / BMR / Exercise row */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      {/* Weight / BMR / Exercise / Resting Energy grid */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <button
           onClick={() => setWeightSheet(true)}
           className="bg-card rounded-2xl border border-border shadow-sm p-4 text-left active:scale-95 transition-transform"
@@ -319,7 +352,7 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
           </p>
         </button>
         <div className="bg-card rounded-2xl border border-border shadow-sm p-4">
-          <p className="text-xs text-muted mb-1">🧍‍♀️ BMR</p>
+          <p className="text-xs text-muted mb-1">🧍‍♀️ BMR (calculated)</p>
           <p className="text-lg font-semibold text-text">
             {summary.bmr ?? '—'}
           </p>
@@ -330,8 +363,24 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
           className="bg-card rounded-2xl border border-border shadow-sm p-4 text-left active:scale-95 transition-transform"
         >
           <p className="text-xs text-muted mb-1">🏃‍♀️ Exercise</p>
-          <p className="text-lg font-semibold text-text">{summary.exerciseKcal}</p>
-          <p className="text-xs text-muted">kcal</p>
+          <p className="text-lg font-semibold text-text">
+            {summary.exerciseKcal ?? '—'}
+          </p>
+          <p className="text-xs text-muted">
+            {summary.exerciseKcal !== null ? 'kcal' : 'tap to log'}
+          </p>
+        </button>
+        <button
+          onClick={() => setRestingSheet(true)}
+          className="bg-card rounded-2xl border border-border shadow-sm p-4 text-left active:scale-95 transition-transform"
+        >
+          <p className="text-xs text-muted mb-1">🧘‍♀️ Resting Energy</p>
+          <p className="text-lg font-semibold text-text">
+            {summary.restingKcal ?? '—'}
+          </p>
+          <p className="text-xs text-muted">
+            {summary.restingKcal ? 'kcal · logged' : 'tap to log'}
+          </p>
         </button>
       </div>
 
@@ -349,11 +398,11 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
         </button>
 
         <button
-          onClick={() => router.push(`/meals?date=${date}`)}
+          onClick={() => setRestingSheet(true)}
           className="flex flex-col items-center gap-2 bg-card rounded-2xl border border-border shadow-sm p-4 min-h-[80px] active:scale-95 transition-transform"
         >
-          <ChefHat size={24} className="text-secondary" />
-          <span className="text-xs font-medium text-text text-center leading-tight">Log Meal</span>
+          <PersonStanding size={24} className="text-secondary" />
+          <span className="text-xs font-medium text-text text-center leading-tight">Log Resting</span>
         </button>
 
         <button
@@ -394,6 +443,11 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       {/* Exercise Sheet */}
       <Sheet isOpen={exerciseSheet} onClose={() => setExerciseSheet(false)} title="Log Exercise">
         <div className="space-y-4">
+          {summary.exerciseKcal === null && summary.avgExerciseKcal7d !== null && (
+            <p className="text-xs text-muted -mt-2">
+              Prefilled with your 7-day average ({summary.avgExerciseKcal7d} kcal) — adjust if today's different.
+            </p>
+          )}
           <div>
             <label className="block text-sm font-medium text-text mb-2">Calories burned (kcal)</label>
             <input
@@ -413,6 +467,40 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
             className="w-full bg-primary text-white rounded-xl px-4 py-3 font-medium disabled:opacity-50 min-h-[48px]"
           >
             {loading ? 'Saving…' : 'Save Exercise'}
+          </button>
+        </div>
+      </Sheet>
+
+      {/* Resting Energy Sheet */}
+      <Sheet isOpen={restingSheet} onClose={() => setRestingSheet(false)} title="Log Resting Energy">
+        <div className="space-y-4">
+          <p className="text-xs text-muted -mt-2">
+            From your Apple Watch/iPhone Health app (Health → Resting Energy). Once logged, this replaces the calculated BMR in today&apos;s burn total.
+          </p>
+          {summary.restingKcal === null && summary.avgRestingKcal7d !== null && (
+            <p className="text-xs text-muted -mt-2">
+              Prefilled with your 7-day average ({summary.avgRestingKcal7d} kcal) — adjust if today's different.
+            </p>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-text mb-2">Resting energy (kcal)</label>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="1"
+              placeholder="e.g. 1450"
+              value={restingValue}
+              onChange={(e) => setRestingValue(e.target.value)}
+              className="w-full border border-border rounded-xl px-4 py-3 text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary/40 text-lg"
+              autoFocus
+            />
+          </div>
+          <button
+            onClick={handleRestingSubmit}
+            disabled={loading || !restingValue}
+            className="w-full bg-primary text-white rounded-xl px-4 py-3 font-medium disabled:opacity-50 min-h-[48px]"
+          >
+            {loading ? 'Saving…' : 'Save Resting Energy'}
           </button>
         </div>
       </Sheet>

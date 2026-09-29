@@ -29,6 +29,7 @@ export async function GET() {
     const weightMap = new Map(weightLogs.map(w => [w.date, w.weight]))
     const intakeMap = new Map(mealsByDate.map(m => [m.date, m._sum.kcal ?? 0]))
     const exerciseMap = new Map(activities.map(a => [a.date, a.exerciseKcal]))
+    const restingMap = new Map(activities.map(a => [a.date, a.restingKcal]))
 
     const age = profile?.birthday ? calcAge(profile.birthday) : null
     const profileComplete = !!(profile?.gender && age && profile?.height)
@@ -51,7 +52,8 @@ export async function GET() {
       let deficit: number | null = null
       if (profileComplete && effectiveWeight && profile && age) {
         const bmr = calcBMR(profile.gender, age, profile.height, effectiveWeight)
-        deficit = Math.round(totalIntake - (bmr + exerciseKcal))
+        const resting = restingMap.get(date) ?? bmr
+        deficit = Math.round(totalIntake - (resting + exerciseKcal))
       }
 
       return { date, weight, totalIntake, exerciseKcal, deficit }

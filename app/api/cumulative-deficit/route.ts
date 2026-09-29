@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.dailyActivity.findMany({
         where: { date: { lte: date, ...(from ? { gte: from } : {}) } },
-        select: { date: true, exerciseKcal: true },
+        select: { date: true, exerciseKcal: true, restingKcal: true },
       }),
       // Weight logs: fetch from beginning (needed for lookback before `from`)
       prisma.weightLog.findMany({
@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     // Build lookup maps
     const intakeByDate = new Map(mealRows.map((r) => [r.date, r._sum.kcal ?? 0]))
     const exerciseByDate = new Map(activities.map((a) => [a.date, a.exerciseKcal]))
+    const restingByDate = new Map(activities.map((a) => [a.date, a.restingKcal]))
 
     // All dates that have intake data
     const allDates = [...new Set([...intakeByDate.keys()])].sort()
@@ -71,7 +72,8 @@ export async function GET(request: NextRequest) {
 
       const bmr = calcBMR(profile.gender, age!, profile.height, weight)
       const exercise = exerciseByDate.get(d) ?? 0
-      const burn = bmr + exercise
+      const resting = restingByDate.get(d) ?? bmr
+      const burn = resting + exercise
       const intake = intakeByDate.get(d) ?? 0
       cumulativeDeficit += intake - burn
       days++
