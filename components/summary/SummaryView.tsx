@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { formatDateShort } from '@/lib/utils'
+import { formatDateShort, today } from '@/lib/utils'
 import type { DailySummary } from '@/lib/summary'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis,
@@ -12,8 +12,12 @@ import {
   calculateDynamicTDEE,
   daysUntilGoal,
 } from '@/lib/ml'
+import DatePicker from '@/components/ui/DatePicker'
 
-type Range = 7 | 14 | 30
+type PresetRange = 7 | 14 | 30
+type RangeMode = PresetRange | 'custom'
+
+const MAX_CUSTOM_DAYS = 90
 
 // ── date helpers ──────────────────────────────────────────────────
 
@@ -23,6 +27,18 @@ function getPastDates(n: number): string[] {
     d.setDate(d.getDate() - i)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   })
+}
+
+// Inclusive of both ends, most-recent-first (same ordering as getPastDates).
+function getDatesInRange(from: string, to: string): string[] {
+  const dates: string[] = []
+  const cursor = new Date(to + 'T00:00:00')
+  const start = new Date(from + 'T00:00:00')
+  while (cursor >= start) {
+    dates.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`)
+    cursor.setDate(cursor.getDate() - 1)
+  }
+  return dates
 }
 
 
@@ -191,7 +207,11 @@ function ChartTooltip({ active, payload, label }: {
 // ─────────────────────────────────────────────────────────────────
 
 export default function SummaryView() {
-  const [range, setRange] = useState<Range>(7)
+  const [range, setRange] = useState<RangeMode>(7)
+  const [customStart, setCustomStart] = useState<string>(() => getPastDates(30).at(-1)!)
+  const [customEnd, setCustomEnd] = useState<string>(() => today())
+  const [showStartPicker, setShowStartPicker] = useState(false)
+  const [showEndPicker, setShowEndPicker] = useState(false)
   const [summaries, setSummaries] = useState<DailySummary[]>([])
   const [cumulative, setCumulative] = useState<CumulativeData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -253,18 +273,21 @@ export default function SummaryView() {
     fetchML()
   }, [])
 
-  // Fetch display data when range changes
+  // Fetch display data when range (or custom start/end) changes
   useEffect(() => {
+    if (range === 'custom' && customStart > customEnd) return // wait for a valid range
+
     const fetchAll = async () => {
       setLoading(true)
       setPinnedDate(null)
-      const dates = getPastDates(range)
-      const today = dates[0]
-      const from = dates[dates.length - 1]
+      const dates = (range === 'custom' ? getDatesInRange(customStart, customEnd) : getPastDates(range))
+        .slice(0, MAX_CUSTOM_DAYS)
+      const mostRecent = dates[0]
+      const oldest = dates[dates.length - 1]
       try {
         const [results, cData] = await Promise.all([
           Promise.all(dates.map(d => fetch(`/api/summary/${d}`).then(r => r.json()))),
-          fetch(`/api/cumulative-deficit?date=${today}&from=${from}`).then(r => r.json()),
+          fetch(`/api/cumulative-deficit?date=${mostRecent}&from=${oldest}`).then(r => r.json()),
         ])
         setSummaries(results)
         setCumulative(cData)
@@ -275,7 +298,7 @@ export default function SummaryView() {
       }
     }
     fetchAll()
-  }, [range])
+  }, [range, customStart, customEnd])
 
   // ── chart data ──────────────────────────────────────────────────
 
@@ -312,7 +335,11 @@ export default function SummaryView() {
 
   const totalPoints = combinedData.length
   const xAxisInterval = totalPoints <= 9 ? 0 : totalPoints <= 18 ? 1 : Math.floor(totalPoints / 9)
-  const showDots = range <= 7
+  const showDots = totalPoints <= 7
+
+  const rangeDayCount = range === 'custom' ? getDatesInRange(customStart, customEnd).length : range
+  const customRangeInvalid = range === 'custom' && customStart > customEnd
+  const customRangeClamped = range === 'custom' && !customRangeInvalid && rangeDayCount > MAX_CUSTOM_DAYS
 
   // ── AI insight ─────────────────────────────────────────────────
 
@@ -355,15 +382,60 @@ export default function SummaryView() {
 
       {/* Segmented control */}
       <div className="flex bg-bg rounded-2xl p-1 mb-4 border border-border">
-        {([7, 14, 30] as Range[]).map(r => (
+        {([7, 14, 30, 'custom'] as RangeMode[]).map(r => (
           <button key={r} onClick={() => setRange(r)}
             className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all min-h-[40px] ${
               range === r ? 'bg-card text-text shadow-sm border border-border' : 'text-muted'
             }`}>
-            {r === 7 ? '7 days' : r === 14 ? '14 days' : '30 days'}
+            {r === 7 ? '7 days' : r === 14 ? '14 days' : r === 30 ? '30 days' : 'Custom'}
           </button>
         ))}
       </div>
+
+      {/* Custom range pickers */}
+      {range === 'custom' && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowStartPicker(true)}
+              className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm font-medium text-text text-center min-h-[40px]"
+            >
+              {formatDateShort(customStart)}
+            </button>
+            <span className="text-xs text-muted">to</span>
+            <button
+              onClick={() => setShowEndPicker(true)}
+              className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm font-medium text-text text-center min-h-[40px]"
+            >
+              {formatDateShort(customEnd)}
+            </button>
+          </div>
+          {customRangeInvalid && (
+            <p className="text-xs text-danger mt-2">Start date must be before end date.</p>
+          )}
+          {customRangeClamped && (
+            <p className="text-xs text-muted mt-2">Showing the most recent {MAX_CUSTOM_DAYS} days of this range.</p>
+          )}
+        </div>
+      )}
+
+      {showStartPicker && (
+        <DatePicker
+          value={customStart}
+          max={customEnd}
+          onChange={(d) => setCustomStart(d)}
+          onClose={() => setShowStartPicker(false)}
+        />
+      )}
+      {showEndPicker && (
+        <DatePicker
+          value={customEnd}
+          min={customStart}
+          max={today()}
+          onChange={(d) => setCustomEnd(d)}
+          onClose={() => setShowEndPicker(false)}
+        />
+      )}
 
       {loading ? (
         <div className="text-center text-muted py-16">Loading…</div>
@@ -385,7 +457,7 @@ export default function SummaryView() {
                   ≈ {Math.abs(cumulative.estimatedFatLoss)} kg estimated fat {cumulative.cumulativeDeficit <= 0 ? 'loss' : 'gain'}
                 </p>
                 <p className="text-xs text-muted/60">
-                  {status.subtext} · tracked {cumulative.days} of {range} day{range > 1 ? 's' : ''}
+                  {status.subtext} · tracked {cumulative.days} of {Math.min(rangeDayCount, MAX_CUSTOM_DAYS)} day{rangeDayCount > 1 ? 's' : ''}
                 </p>
               </>
             ) : (

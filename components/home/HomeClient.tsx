@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Scale, Flame, TrendingDown, Dumbbell, PersonStanding, X, AlertCircle, ChevronLeft, ChevronRight, Utensils } from 'lucide-react'
+import { Flame, TrendingDown, X, AlertCircle, ChevronLeft, ChevronRight, Utensils } from 'lucide-react'
 import type { DailySummary } from '@/lib/summary'
 import { formatDate, formatDayOfWeek, today } from '@/lib/utils'
 import { TAB_VISIT_EVENT } from '@/components/BottomNav'
@@ -274,7 +274,7 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
               ? "Perfect balance achieved ⚖️"
               : "Oops… a tiny bit extra 😅"
             : null
-        const R = 80
+        const R = 88
         const sw = 18
         const C = 2 * Math.PI * R
         const ratio = summary.totalBurn ? Math.min(summary.totalIntake / summary.totalBurn, 1) : 0
@@ -285,49 +285,49 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
             ? 'text-secondary'
             : 'text-danger'
         return (
-          <div className="bg-card rounded-2xl border border-border shadow-sm p-5 mb-6">
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-6 mb-6">
             {statusMsg && (
-              <p className="text-sm text-muted text-center mb-4">{statusMsg}</p>
+              <p className="text-base text-muted text-center mb-5">{statusMsg}</p>
             )}
             <div className="flex flex-col items-center">
               <div className="relative">
-                <svg width="200" height="200" viewBox="0 0 200 200">
-                  <circle cx="100" cy="100" r={R} fill="none" stroke="#e8e4df" strokeWidth={sw} />
+                <svg width="220" height="220" viewBox="0 0 220 220">
+                  <circle cx="110" cy="110" r={R} fill="none" stroke="#e8e4df" strokeWidth={sw} />
                   {summary.totalBurn && (
                     <circle
-                      cx="100" cy="100" r={R}
+                      cx="110" cy="110" r={R}
                       fill="none"
                       stroke="#9b8ea0"
                       strokeWidth={sw}
                       strokeDasharray={`${fill} ${C - fill}`}
                       strokeLinecap="round"
-                      transform="rotate(-90 100 100)"
+                      transform="rotate(-90 110 110)"
                     />
                   )}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <p className={`text-4xl font-bold ${deficitColor}`}>
+                  <p className={`text-5xl font-bold ${deficitColor}`}>
                     {summary.deficit !== null
                       ? `${summary.deficit > 0 ? '+' : ''}${summary.deficit}`
                       : '—'}
                   </p>
-                  <p className="text-xs text-muted mt-0.5">kcal</p>
+                  <p className="text-sm text-muted mt-1">kcal</p>
                   {summary.totalBurn && (
-                    <p className="text-xs text-muted mt-1">
+                    <p className="text-sm text-muted mt-1.5">
                       {summary.totalIntake} / {summary.totalBurn}
                     </p>
                   )}
                 </div>
               </div>
-              <div className="flex gap-4 w-full mt-3">
-                <div className="flex-1 bg-bg rounded-xl p-3 text-center">
-                  <p className="text-xs text-muted mb-1">🍽️ Intake</p>
-                  <p className={`text-lg font-bold ${intakeColor}`}>{summary.totalIntake}</p>
+              <div className="flex gap-4 w-full mt-4">
+                <div className="flex-1 bg-bg rounded-xl p-4 text-center">
+                  <p className="text-sm text-muted mb-1">🍽️ Intake</p>
+                  <p className={`text-xl font-bold ${intakeColor}`}>{summary.totalIntake}</p>
                   <p className="text-xs text-muted">kcal</p>
                 </div>
-                <div className="flex-1 bg-bg rounded-xl p-3 text-center">
-                  <p className="text-xs text-muted mb-1">🔥 Burn</p>
-                  <p className="text-lg font-bold text-text">{summary.totalBurn ?? '—'}</p>
+                <div className="flex-1 bg-bg rounded-xl p-4 text-center">
+                  <p className="text-sm text-muted mb-1">🔥 Burn</p>
+                  <p className="text-xl font-bold text-text">{summary.totalBurn ?? '—'}</p>
                   <p className="text-xs text-muted">kcal</p>
                 </div>
               </div>
@@ -337,13 +337,13 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       })()}
 
       {/* Weight / BMR / Exercise / Resting Energy grid */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-2.5 mb-8">
         <button
           onClick={() => setWeightSheet(true)}
-          className="bg-card rounded-2xl border border-border shadow-sm p-4 text-left active:scale-95 transition-transform"
+          className="bg-card rounded-2xl border border-border shadow-sm p-3 text-left active:scale-95 transition-transform"
         >
-          <p className="text-xs text-muted mb-1">⚖️ Weight</p>
-          <p className="text-lg font-semibold text-text">
+          <p className="text-xs text-muted mb-0.5">⚖️ Weight</p>
+          <p className="text-base font-semibold text-text">
             {summary.weight ? `${summary.weight}` : '—'}
           </p>
           <p className="text-xs text-muted">
@@ -351,19 +351,19 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
             {summary.weightEstimated && ' est.'}
           </p>
         </button>
-        <div className="bg-card rounded-2xl border border-border shadow-sm p-4">
-          <p className="text-xs text-muted mb-1">🧍‍♀️ BMR (calculated)</p>
-          <p className="text-lg font-semibold text-text">
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-3">
+          <p className="text-xs text-muted mb-0.5">🧍‍♀️ BMR (calculated)</p>
+          <p className="text-base font-semibold text-text">
             {summary.bmr ?? '—'}
           </p>
           <p className="text-xs text-muted">{summary.bmr ? 'kcal' : ''}</p>
         </div>
         <button
           onClick={() => setExerciseSheet(true)}
-          className="bg-card rounded-2xl border border-border shadow-sm p-4 text-left active:scale-95 transition-transform"
+          className="bg-card rounded-2xl border border-border shadow-sm p-3 text-left active:scale-95 transition-transform"
         >
-          <p className="text-xs text-muted mb-1">🏃‍♀️ Exercise</p>
-          <p className="text-lg font-semibold text-text">
+          <p className="text-xs text-muted mb-0.5">🏃‍♀️ Exercise</p>
+          <p className="text-base font-semibold text-text">
             {summary.exerciseKcal ?? '—'}
           </p>
           <p className="text-xs text-muted">
@@ -372,45 +372,15 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
         </button>
         <button
           onClick={() => setRestingSheet(true)}
-          className="bg-card rounded-2xl border border-border shadow-sm p-4 text-left active:scale-95 transition-transform"
+          className="bg-card rounded-2xl border border-border shadow-sm p-3 text-left active:scale-95 transition-transform"
         >
-          <p className="text-xs text-muted mb-1">🧘‍♀️ Resting Energy</p>
-          <p className="text-lg font-semibold text-text">
+          <p className="text-xs text-muted mb-0.5">🧘‍♀️ Resting Energy</p>
+          <p className="text-base font-semibold text-text">
             {summary.restingKcal ?? '—'}
           </p>
           <p className="text-xs text-muted">
             {summary.restingKcal ? 'kcal · logged' : 'tap to log'}
           </p>
-        </button>
-      </div>
-
-      {/* Quick actions */}
-      <h2 className="text-sm font-semibold text-muted uppercase tracking-wider mb-3">
-        Quick Actions
-      </h2>
-      <div className="grid grid-cols-3 gap-3 mb-8">
-        <button
-          onClick={() => setWeightSheet(true)}
-          className="flex flex-col items-center gap-2 bg-card rounded-2xl border border-border shadow-sm p-4 min-h-[80px] active:scale-95 transition-transform"
-        >
-          <Scale size={24} className="text-primary" />
-          <span className="text-xs font-medium text-text text-center leading-tight">Log Weight</span>
-        </button>
-
-        <button
-          onClick={() => setRestingSheet(true)}
-          className="flex flex-col items-center gap-2 bg-card rounded-2xl border border-border shadow-sm p-4 min-h-[80px] active:scale-95 transition-transform"
-        >
-          <PersonStanding size={24} className="text-secondary" />
-          <span className="text-xs font-medium text-text text-center leading-tight">Log Resting</span>
-        </button>
-
-        <button
-          onClick={() => setExerciseSheet(true)}
-          className="flex flex-col items-center gap-2 bg-card rounded-2xl border border-border shadow-sm p-4 min-h-[80px] active:scale-95 transition-transform"
-        >
-          <Dumbbell size={24} className="text-accent" />
-          <span className="text-xs font-medium text-text text-center leading-tight">Log Exercise</span>
         </button>
       </div>
 
