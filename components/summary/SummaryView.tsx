@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { formatDateShort, today } from '@/lib/utils'
+import { formatDateShort, formatDateMMDDYY, today } from '@/lib/utils'
 import type { DailySummary } from '@/lib/summary'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis,
@@ -17,7 +17,7 @@ import DatePicker from '@/components/ui/DatePicker'
 type PresetRange = 7 | 14 | 30
 type RangeMode = PresetRange | 'custom'
 
-const MAX_CUSTOM_DAYS = 90
+const MAX_CUSTOM_DAYS = 365
 
 // ── date helpers ──────────────────────────────────────────────────
 
@@ -336,6 +336,10 @@ export default function SummaryView() {
   const totalPoints = combinedData.length
   const xAxisInterval = totalPoints <= 9 ? 0 : totalPoints <= 18 ? 1 : Math.floor(totalPoints / 9)
   const showDots = totalPoints <= 7
+  // Bars naturally get thinner as more days are packed in — cap the max width
+  // progressively so long ranges (e.g. a full year) stay razor-thin instead of clipping.
+  const barMaxSize = totalPoints <= 30 ? 16 : totalPoints <= 90 ? 8 : totalPoints <= 180 ? 4 : 2
+  const barRadius: [number, number, number, number] = barMaxSize <= 4 ? [0, 0, 0, 0] : [2, 2, 0, 0]
 
   const rangeDayCount = range === 'custom' ? getDatesInRange(customStart, customEnd).length : range
   const customRangeInvalid = range === 'custom' && customStart > customEnd
@@ -400,14 +404,14 @@ export default function SummaryView() {
               onClick={() => setShowStartPicker(true)}
               className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm font-medium text-text text-center min-h-[40px]"
             >
-              {formatDateShort(customStart)}
+              {formatDateMMDDYY(customStart)}
             </button>
             <span className="text-xs text-muted">to</span>
             <button
               onClick={() => setShowEndPicker(true)}
               className="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-sm font-medium text-text text-center min-h-[40px]"
             >
-              {formatDateShort(customEnd)}
+              {formatDateMMDDYY(customEnd)}
             </button>
           </div>
           {customRangeInvalid && (
@@ -510,8 +514,8 @@ export default function SummaryView() {
                     <Bar
                       yAxisId="right"
                       dataKey="deficit"
-                      radius={[2, 2, 0, 0]}
-                      maxBarSize={16}
+                      radius={barRadius}
+                      maxBarSize={barMaxSize}
                       isAnimationActive={false}
                     >
                       {combinedData.map((entry, i) => (
