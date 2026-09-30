@@ -72,13 +72,13 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
 
   useEffect(() => { setGreeting(calcGreeting()) }, [])
 
-  // Server renders with UTC date; correct to local today on mount
+  // Always refetch on mount: the initial props can be a stale cached render
+  // (Next.js's client-side router cache) from the last time this page was
+  // visited, and this also corrects the server's UTC date to local "today".
   useEffect(() => {
     const localToday = today()
-    if (localToday !== date) {
-      setDate(localToday)
-      fetchSummary(localToday)
-    }
+    setDate(localToday)
+    fetchSummary(localToday)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [weightSheet, setWeightSheet] = useState(false)
   const [exerciseSheet, setExerciseSheet] = useState(false)
