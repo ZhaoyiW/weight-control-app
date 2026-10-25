@@ -253,8 +253,7 @@ export default function FoodView() {
       {/* FAB */}
       <button
         onClick={() => setAddSheet(true)}
-        className="fixed right-4 bg-primary text-white rounded-full p-4 shadow-lg active:scale-95 transition-transform z-40 min-h-[56px] min-w-[56px] flex items-center justify-center"
-        style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom) + 1rem)' }}
+        className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom)+1rem)] duo-rail:right-[calc(max(env(safe-area-inset-right),68px)+1rem)] duo-rail:bottom-[calc(env(safe-area-inset-bottom)+1rem)] bg-primary text-white rounded-full p-4 shadow-lg active:scale-95 transition-transform z-40 min-h-[56px] min-w-[56px] flex items-center justify-center"
       >
         <Plus size={24} />
       </button>
