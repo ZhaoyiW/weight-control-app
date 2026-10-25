@@ -7,6 +7,7 @@ import type { DailySummary } from '@/lib/summary'
 import { formatDate, formatDayOfWeek, today } from '@/lib/utils'
 import { TAB_VISIT_EVENT } from '@/components/BottomNav'
 import DatePicker from '@/components/ui/DatePicker'
+import { useDuoLayout } from '@/components/DuoLayoutProvider'
 
 interface HomeClientProps {
   summary: DailySummary
@@ -33,6 +34,160 @@ function shiftDate(date: string, days: number): string {
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+interface DayPanelProps {
+  summary: DailySummary
+  isCompactHeight: boolean
+  interactive: boolean
+  onTapWeight?: () => void
+  onTapExercise?: () => void
+  onTapResting?: () => void
+}
+
+// Ring chart + Weight/BMR/Exercise/Resting Energy grid for one day. Used twice
+// side-by-side (today + yesterday) on inner-landscape; the second instance is
+// read-only (interactive=false) — logging past days still goes through the
+// normal date-nav arrows rather than this comparison view.
+function DayPanel({ summary, isCompactHeight, interactive, onTapWeight, onTapExercise, onTapResting }: DayPanelProps) {
+  const deficitColor =
+    summary.deficit === null
+      ? 'text-muted'
+      : summary.deficit < 0
+      ? 'text-secondary'
+      : 'text-danger'
+
+  const statusMsg =
+    summary.bmr !== null && summary.totalBurn !== null
+      ? summary.totalIntake < summary.bmr
+        ? "Hmm… still room for a bite 👀"
+        : summary.totalIntake <= summary.totalBurn
+        ? "Perfect balance achieved ⚖️"
+        : "Oops… a tiny bit extra 😅"
+      : null
+  const R = isCompactHeight ? 64 : 88
+  const sw = isCompactHeight ? 14 : 18
+  const svgSize = isCompactHeight ? 170 : 220
+  const center = svgSize / 2
+  const C = 2 * Math.PI * R
+  const ratio = summary.totalBurn ? Math.min(summary.totalIntake / summary.totalBurn, 1) : 0
+  const fill = C * ratio
+  const intakeColor =
+    summary.bmr !== null && summary.totalBurn !== null &&
+    summary.totalIntake >= summary.bmr && summary.totalIntake <= summary.totalBurn
+      ? 'text-secondary'
+      : 'text-danger'
+
+  const cardCls = `bg-card rounded-2xl border border-border shadow-sm ${isCompactHeight ? 'p-2' : 'p-3'}`
+  const valueCls = `font-semibold text-text ${isCompactHeight ? 'text-sm' : 'text-base'}`
+
+  return (
+    <>
+      {/* Ring chart */}
+      <div className={`bg-card rounded-2xl border border-border shadow-sm ${isCompactHeight ? 'p-4 mb-3' : 'p-6 mb-6'}`}>
+        {statusMsg && (
+          <p className={`text-muted text-center ${isCompactHeight ? 'text-xs mb-2' : 'text-base mb-5'}`}>{statusMsg}</p>
+        )}
+        <div className="flex flex-col items-center">
+          <div className="relative">
+            <svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
+              <circle cx={center} cy={center} r={R} fill="none" stroke="#e8e4df" strokeWidth={sw} />
+              {summary.totalBurn && (
+                <circle
+                  cx={center} cy={center} r={R}
+                  fill="none"
+                  stroke="#9b8ea0"
+                  strokeWidth={sw}
+                  strokeDasharray={`${fill} ${C - fill}`}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 ${center} ${center})`}
+                />
+              )}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className={`font-bold ${deficitColor} ${isCompactHeight ? 'text-3xl' : 'text-5xl'}`}>
+                {summary.deficit !== null
+                  ? `${summary.deficit > 0 ? '+' : ''}${summary.deficit}`
+                  : '—'}
+              </p>
+              <p className={`text-muted ${isCompactHeight ? 'text-[10px] mt-0' : 'text-sm mt-1'}`}>kcal</p>
+              {summary.totalBurn && (
+                <p className={`text-muted ${isCompactHeight ? 'text-[10px] mt-0.5' : 'text-sm mt-1.5'}`}>
+                  {summary.totalIntake} / {summary.totalBurn}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className={`flex gap-4 w-full ${isCompactHeight ? 'mt-3' : 'mt-4'}`}>
+            <div className={`flex-1 bg-bg rounded-xl text-center ${isCompactHeight ? 'p-2.5' : 'p-4'}`}>
+              <p className={`text-muted mb-1 ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>🍽️ Intake</p>
+              <p className={`font-bold ${intakeColor} ${isCompactHeight ? 'text-lg' : 'text-xl'}`}>{summary.totalIntake}</p>
+              <p className="text-xs text-muted">kcal</p>
+            </div>
+            <div className={`flex-1 bg-bg rounded-xl text-center ${isCompactHeight ? 'p-2.5' : 'p-4'}`}>
+              <p className={`text-muted mb-1 ${isCompactHeight ? 'text-xs' : 'text-sm'}`}>🔥 Burn</p>
+              <p className={`font-bold text-text ${isCompactHeight ? 'text-lg' : 'text-xl'}`}>{summary.totalBurn ?? '—'}</p>
+              <p className="text-xs text-muted">kcal</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Weight / BMR / Exercise / Resting Energy grid */}
+      <div className={`grid grid-cols-2 ${isCompactHeight ? 'gap-1.5 mb-3' : 'gap-2.5 mb-8'}`}>
+        {interactive ? (
+          <button onClick={onTapWeight} className={`${cardCls} text-left active:scale-95 transition-transform`}>
+            <p className="text-xs text-muted mb-0.5">⚖️ Weight</p>
+            <p className={valueCls}>{summary.weight ? `${summary.weight}` : '—'}</p>
+            <p className="text-xs text-muted">
+              {summary.weight ? 'kg' : ''}
+              {summary.weightEstimated && ' est.'}
+            </p>
+          </button>
+        ) : (
+          <div className={cardCls}>
+            <p className="text-xs text-muted mb-0.5">⚖️ Weight</p>
+            <p className={valueCls}>{summary.weight ? `${summary.weight}` : '—'}</p>
+            <p className="text-xs text-muted">
+              {summary.weight ? 'kg' : ''}
+              {summary.weightEstimated && ' est.'}
+            </p>
+          </div>
+        )}
+        <div className={cardCls}>
+          <p className="text-xs text-muted mb-0.5">🧍‍♀️ BMR (calculated)</p>
+          <p className={valueCls}>{summary.bmr ?? '—'}</p>
+          <p className="text-xs text-muted">{summary.bmr ? 'kcal' : ''}</p>
+        </div>
+        {interactive ? (
+          <button onClick={onTapExercise} className={`${cardCls} text-left active:scale-95 transition-transform`}>
+            <p className="text-xs text-muted mb-0.5">🏃‍♀️ Exercise</p>
+            <p className={valueCls}>{summary.exerciseKcal ?? '—'}</p>
+            <p className="text-xs text-muted">{summary.exerciseKcal !== null ? 'kcal' : 'tap to log'}</p>
+          </button>
+        ) : (
+          <div className={cardCls}>
+            <p className="text-xs text-muted mb-0.5">🏃‍♀️ Exercise</p>
+            <p className={valueCls}>{summary.exerciseKcal ?? '—'}</p>
+            <p className="text-xs text-muted">{summary.exerciseKcal !== null ? 'kcal' : '—'}</p>
+          </div>
+        )}
+        {interactive ? (
+          <button onClick={onTapResting} className={`${cardCls} text-left active:scale-95 transition-transform`}>
+            <p className="text-xs text-muted mb-0.5">🧘‍♀️ Resting Energy</p>
+            <p className={valueCls}>{summary.restingKcal ?? '—'}</p>
+            <p className="text-xs text-muted">{summary.restingKcal ? 'kcal · logged' : 'tap to log'}</p>
+          </button>
+        ) : (
+          <div className={cardCls}>
+            <p className="text-xs text-muted mb-0.5">🧘‍♀️ Resting Energy</p>
+            <p className={valueCls}>{summary.restingKcal ?? '—'}</p>
+            <p className="text-xs text-muted">{summary.restingKcal ? 'kcal · logged' : '—'}</p>
+          </div>
+        )}
+      </div>
+    </>
+  )
 }
 
 interface SheetProps {
@@ -65,8 +220,15 @@ function Sheet({ isOpen, onClose, title, children }: SheetProps) {
 
 export default function HomeClient({ summary: initialSummary }: HomeClientProps) {
   const router = useRouter()
+  const { navPosition, layoutWidth, isCompactHeight } = useDuoLayout()
+  // Inner-landscape specifically (side nav + regular width — inner-portrait
+  // uses bottom nav per Apple's HIG, so this combination only matches
+  // inner-landscape): show today and the day before side by side instead of
+  // just today, since there's width to spare but not much height either.
+  const showDualDay = navPosition === 'side' && layoutWidth === 'regular'
   const [greeting, setGreeting] = useState('')
   const [summary, setSummary] = useState<DailySummary>(initialSummary)
+  const [prevDaySummary, setPrevDaySummary] = useState<DailySummary | null>(null)
   const [date, setDate] = useState(initialSummary.date)
   const [fetching, setFetching] = useState(false)
 
@@ -111,6 +273,19 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       setFetching(false)
     }
   }, [])
+
+  // Fetch the day before whichever date is selected, only while the dual-day
+  // view is actually showing it — avoids the extra request everywhere else.
+  useEffect(() => {
+    if (!showDualDay) return
+    const prevDate = shiftDate(date, -1)
+    let cancelled = false
+    fetch(`/api/summary/${prevDate}`)
+      .then((r) => r.json())
+      .then((data: DailySummary) => { if (!cancelled) setPrevDaySummary(data) })
+      .catch(() => { if (!cancelled) setPrevDaySummary(null) })
+    return () => { cancelled = true }
+  }, [showDualDay, date])
 
   useEffect(() => {
     const onTabVisit = (e: Event) => {
@@ -198,17 +373,12 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
     }
   }, [restingValue, date, fetchSummary])
 
-  const deficitColor =
-    summary.deficit === null
-      ? 'text-muted'
-      : summary.deficit < 0
-      ? 'text-secondary'
-      : 'text-danger'
+  const prevDate = shiftDate(date, -1)
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-6 pb-24">
+    <div className={`mx-auto px-4 ${showDualDay ? 'max-w-4xl' : 'max-w-md'} ${isCompactHeight ? 'pt-3' : 'pt-6'} ${navPosition === 'side' ? 'pb-6' : 'pb-24'}`}>
       {/* Header with date nav */}
-      <div className="mb-6">
+      <div className={isCompactHeight ? 'mb-3' : 'mb-6'}>
         <p className="text-muted text-sm text-center">{greeting}</p>
         <div className="flex items-center gap-2 mt-1">
           <button
@@ -264,125 +434,44 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
         </div>
       )}
 
-      {/* Ring chart */}
-      {(() => {
-        const statusMsg =
-          summary.bmr !== null && summary.totalBurn !== null
-            ? summary.totalIntake < summary.bmr
-              ? "Hmm… still room for a bite 👀"
-              : summary.totalIntake <= summary.totalBurn
-              ? "Perfect balance achieved ⚖️"
-              : "Oops… a tiny bit extra 😅"
-            : null
-        const R = 88
-        const sw = 18
-        const C = 2 * Math.PI * R
-        const ratio = summary.totalBurn ? Math.min(summary.totalIntake / summary.totalBurn, 1) : 0
-        const fill = C * ratio
-        const intakeColor =
-          summary.bmr !== null && summary.totalBurn !== null &&
-          summary.totalIntake >= summary.bmr && summary.totalIntake <= summary.totalBurn
-            ? 'text-secondary'
-            : 'text-danger'
-        return (
-          <div className="bg-card rounded-2xl border border-border shadow-sm p-6 mb-6">
-            {statusMsg && (
-              <p className="text-base text-muted text-center mb-5">{statusMsg}</p>
-            )}
-            <div className="flex flex-col items-center">
-              <div className="relative">
-                <svg width="220" height="220" viewBox="0 0 220 220">
-                  <circle cx="110" cy="110" r={R} fill="none" stroke="#e8e4df" strokeWidth={sw} />
-                  {summary.totalBurn && (
-                    <circle
-                      cx="110" cy="110" r={R}
-                      fill="none"
-                      stroke="#9b8ea0"
-                      strokeWidth={sw}
-                      strokeDasharray={`${fill} ${C - fill}`}
-                      strokeLinecap="round"
-                      transform="rotate(-90 110 110)"
-                    />
-                  )}
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <p className={`text-5xl font-bold ${deficitColor}`}>
-                    {summary.deficit !== null
-                      ? `${summary.deficit > 0 ? '+' : ''}${summary.deficit}`
-                      : '—'}
-                  </p>
-                  <p className="text-sm text-muted mt-1">kcal</p>
-                  {summary.totalBurn && (
-                    <p className="text-sm text-muted mt-1.5">
-                      {summary.totalIntake} / {summary.totalBurn}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-4 w-full mt-4">
-                <div className="flex-1 bg-bg rounded-xl p-4 text-center">
-                  <p className="text-sm text-muted mb-1">🍽️ Intake</p>
-                  <p className={`text-xl font-bold ${intakeColor}`}>{summary.totalIntake}</p>
-                  <p className="text-xs text-muted">kcal</p>
-                </div>
-                <div className="flex-1 bg-bg rounded-xl p-4 text-center">
-                  <p className="text-sm text-muted mb-1">🔥 Burn</p>
-                  <p className="text-xl font-bold text-text">{summary.totalBurn ?? '—'}</p>
-                  <p className="text-xs text-muted">kcal</p>
-                </div>
-              </div>
-            </div>
+      {/* Ring chart + stat grid. On inner-landscape, today and the day before
+          render side by side instead of just today. */}
+      {showDualDay ? (
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <p className="text-center text-sm font-semibold text-muted mb-3">
+              {isToday ? 'Today' : formatDate(date)}
+            </p>
+            <DayPanel
+              summary={summary}
+              isCompactHeight={isCompactHeight}
+              interactive
+              onTapWeight={() => setWeightSheet(true)}
+              onTapExercise={() => setExerciseSheet(true)}
+              onTapResting={() => setRestingSheet(true)}
+            />
           </div>
-        )
-      })()}
-
-      {/* Weight / BMR / Exercise / Resting Energy grid */}
-      <div className="grid grid-cols-2 gap-2.5 mb-8">
-        <button
-          onClick={() => setWeightSheet(true)}
-          className="bg-card rounded-2xl border border-border shadow-sm p-3 text-left active:scale-95 transition-transform"
-        >
-          <p className="text-xs text-muted mb-0.5">⚖️ Weight</p>
-          <p className="text-base font-semibold text-text">
-            {summary.weight ? `${summary.weight}` : '—'}
-          </p>
-          <p className="text-xs text-muted">
-            {summary.weight ? 'kg' : ''}
-            {summary.weightEstimated && ' est.'}
-          </p>
-        </button>
-        <div className="bg-card rounded-2xl border border-border shadow-sm p-3">
-          <p className="text-xs text-muted mb-0.5">🧍‍♀️ BMR (calculated)</p>
-          <p className="text-base font-semibold text-text">
-            {summary.bmr ?? '—'}
-          </p>
-          <p className="text-xs text-muted">{summary.bmr ? 'kcal' : ''}</p>
+          <div>
+            <p className="text-center text-sm font-semibold text-muted mb-3">
+              {isToday ? 'Yesterday' : formatDate(prevDate)}
+            </p>
+            {prevDaySummary ? (
+              <DayPanel summary={prevDaySummary} isCompactHeight={isCompactHeight} interactive={false} />
+            ) : (
+              <p className="text-center text-xs text-muted py-10">Loading…</p>
+            )}
+          </div>
         </div>
-        <button
-          onClick={() => setExerciseSheet(true)}
-          className="bg-card rounded-2xl border border-border shadow-sm p-3 text-left active:scale-95 transition-transform"
-        >
-          <p className="text-xs text-muted mb-0.5">🏃‍♀️ Exercise</p>
-          <p className="text-base font-semibold text-text">
-            {summary.exerciseKcal ?? '—'}
-          </p>
-          <p className="text-xs text-muted">
-            {summary.exerciseKcal !== null ? 'kcal' : 'tap to log'}
-          </p>
-        </button>
-        <button
-          onClick={() => setRestingSheet(true)}
-          className="bg-card rounded-2xl border border-border shadow-sm p-3 text-left active:scale-95 transition-transform"
-        >
-          <p className="text-xs text-muted mb-0.5">🧘‍♀️ Resting Energy</p>
-          <p className="text-base font-semibold text-text">
-            {summary.restingKcal ?? '—'}
-          </p>
-          <p className="text-xs text-muted">
-            {summary.restingKcal ? 'kcal · logged' : 'tap to log'}
-          </p>
-        </button>
-      </div>
+      ) : (
+        <DayPanel
+          summary={summary}
+          isCompactHeight={isCompactHeight}
+          interactive
+          onTapWeight={() => setWeightSheet(true)}
+          onTapExercise={() => setExerciseSheet(true)}
+          onTapResting={() => setRestingSheet(true)}
+        />
+      )}
 
       {/* Weight Sheet */}
       <Sheet isOpen={weightSheet} onClose={() => setWeightSheet(false)} title="Log Weight">
