@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Pencil, X, Check, User, Cake, Ruler, Flame, Calendar, Sparkles } from 'lucide-react'
 import { today } from '@/lib/utils'
 import DatePicker from '@/components/ui/DatePicker'
+import type { DailySummary } from '@/lib/summary'
 import {
   calcBMI, getBMICategory, BMI_COLORS, BMI_TEXT_COLORS,
   generateHealthInsights, type DayActivity, type HealthInsights,
@@ -239,7 +240,7 @@ export default function ProfileView() {
         dates.push(d.toISOString().split('T')[0])
       }
       try {
-        const results = await Promise.all(dates.map(d => fetch(`/api/summary/${d}`).then(r => r.json())))
+        const results: DailySummary[] = await fetch(`/api/summary/range?from=${dates[dates.length - 1]}&to=${dates[0]}`).then(r => r.json())
         const history: DayActivity[] = results.map(s => ({
           date: s.date,
           deficit: s.deficit ?? null,
