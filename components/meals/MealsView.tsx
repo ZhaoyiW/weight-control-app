@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Trash2, Plus, Flame, Copy, Pencil, Check, X, Utensils } from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, type PieLabelRenderProps } from 'recharts'
 import { today, formatDate, formatDayOfWeek } from '@/lib/utils'
 import { TAB_VISIT_EVENT } from '@/components/BottomNav'
 import AddMealSheet from './AddMealSheet'
@@ -83,6 +83,127 @@ function analyzeDiet(meals: MealEntry[], totalKcal: number): DietInsight[] | nul
     insights.push({ icon: '⚠️', text: `Total intake is quite low (${totalKcal} kcal) — make sure all meals are logged.`, type: 'warning' })
 
   return insights.length > 0 ? insights : null
+}
+
+function DietInsights({ insights, className = '' }: { insights: DietInsight[]; className?: string }) {
+  return (
+    <div className={`bg-card rounded-2xl border border-border shadow-sm px-5 py-4 ${className}`}>
+      <p className="text-[11px] font-medium text-muted uppercase tracking-wide mb-3">Today's Diet</p>
+      <div className="space-y-2.5">
+        {insights.map((ins, i) => (
+          <div key={i} className="flex items-start gap-2.5">
+            <span className="text-sm leading-none mt-0.5 flex-shrink-0">{ins.icon}</span>
+            <p className={`text-xs leading-relaxed ${
+              ins.type === 'positive' ? 'text-text' : ins.type === 'warning' ? 'text-[#b8865e]' : 'text-muted'
+            }`}>{ins.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Intake chart ──────────────────────────────────────────────────
+
+const PIE_COLORS = ['#E6CFA3', '#B7CDB3', '#8E9AA6', '#D9A5A0']
+
+interface PieDatum { name: string; value: number }
+
+// Percentage drawn on the ring itself (wide layout); tiny slices are skipped
+function renderRingLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: PieLabelRenderProps) {
+  const pct = Math.round((percent ?? 0) * 100)
+  if (pct < 6) return null
+  const r = (Number(innerRadius) + Number(outerRadius)) / 2
+  const a = (-(midAngle ?? 0) * Math.PI) / 180
+  return (
+    <text
+      x={Number(cx) + r * Math.cos(a)}
+      y={Number(cy) + r * Math.sin(a)}
+      textAnchor="middle"
+      dominantBaseline="central"
+      className="fill-text text-[13px] font-semibold"
+    >
+      {pct}%
+    </text>
+  )
+}
+
+function IntakeChart({ pieData, totalKcal }: { pieData: PieDatum[]; totalKcal: number }) {
+  const cells = pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)
+  const tooltip = (
+    <Tooltip
+      formatter={(val) => [`${val} kcal`]}
+      contentStyle={{ fontSize: 11, borderRadius: 10, border: '1px solid #e8e4df' }}
+    />
+  )
+
+  const isEmpty = totalKcal === 0
+
+  return (
+    // Nothing logged: hidden on phones (as before); wide screens keep an empty
+    // ring so the left column isn't blank
+    <div className={`bg-card rounded-2xl border border-border shadow-sm px-4 py-5 mb-3 ${isEmpty ? 'hidden md:block' : ''}`}>
+      {/* Phone: small donut with the legend beside it */}
+      <div className="flex items-center md:hidden">
+        <ResponsiveContainer width={160} height={160}>
+          <PieChart>
+            <Pie data={pieData} cx="50%" cy="50%" innerRadius={42} outerRadius={68} dataKey="value" strokeWidth={0}>
+              {cells}
+            </Pie>
+            {tooltip}
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="flex-1 space-y-1.5 ml-2">
+          {pieData.map((d, i) => (
+            <div key={d.name} className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                <span className="text-xs text-muted">{d.name}</span>
+              </div>
+              <span className="text-xs font-medium text-text">{Math.round(d.value / totalKcal * 100)}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Wide: larger donut, percentages on the ring, total in the middle,
+          legend with kcal underneath */}
+      <div className="hidden md:block">
+        <div className="relative w-[300px] h-[300px] mx-auto">
+          <PieChart width={300} height={300}>
+            {isEmpty ? (
+              <Pie
+                data={[{ value: 1 }]} cx="50%" cy="50%" innerRadius={84} outerRadius={140}
+                dataKey="value" strokeWidth={0} fill="#e8e4df" isAnimationActive={false}
+              />
+            ) : (
+              <Pie
+                data={pieData} cx="50%" cy="50%" innerRadius={84} outerRadius={140}
+                dataKey="value" strokeWidth={0} label={renderRingLabel} labelLine={false} isAnimationActive={false}
+              >
+                {cells}
+              </Pie>
+            )}
+            {!isEmpty && tooltip}
+          </PieChart>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-3xl font-bold text-text">{totalKcal}</span>
+            <span className="text-xs text-muted">kcal</span>
+          </div>
+        </div>
+        <div className="space-y-2 mt-4 px-2">
+          {isEmpty && <p className="text-xs text-muted text-center">Nothing logged yet</p>}
+          {pieData.map((d, i) => (
+            <div key={d.name} className="flex items-center gap-2 min-w-0">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+              <span className="text-xs text-muted truncate">{d.name}</span>
+              <span className="text-xs font-medium text-text ml-auto">{d.value} kcal</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -201,12 +322,13 @@ export default function MealsView() {
   }
 
   const totalKcal = meals.reduce((sum, m) => sum + m.kcal, 0)
+  const insights = analyzeDiet(meals, totalKcal)
   const isToday = date === today()
   const isFuture = date > today()
   const [showCalendar, setShowCalendar] = useState(false)
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-6">
+    <div className="max-w-md md:max-w-5xl mx-auto px-4 pt-6">
       {/* Date selector */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
@@ -237,193 +359,188 @@ export default function MealsView() {
         )}
       </div>
 
-      {/* Total */}
-      <div className="bg-primary/10 rounded-2xl border border-primary/20 p-4 mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Utensils size={18} className="text-primary" />
-          <span className="font-medium text-text">Total Intake</span>
-        </div>
-        <span className="font-bold text-text text-lg">{totalKcal} kcal</span>
-      </div>
-
-      {/* Pie chart */}
-      {totalKcal > 0 && (() => {
-        const pieData = MEAL_TYPES
-          .map(({ key, label, emoji }) => ({
-            name: emoji + ' ' + label,
-            value: meals.filter((m) => m.mealType === key).reduce((s, e) => s + e.kcal, 0),
-          }))
-          .filter((d) => d.value > 0)
-        const COLORS = ['#E6CFA3', '#B7CDB3', '#8E9AA6', '#D9A5A0']
-        return (
-          <div className="bg-card rounded-2xl border border-border shadow-sm px-4 py-5 mb-3">
-            <div className="flex items-center">
-              <ResponsiveContainer width={160} height={160}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={42} outerRadius={68} dataKey="value" strokeWidth={0}>
-                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip
-                    formatter={(val) => [`${val} kcal`]}
-                    contentStyle={{ fontSize: 11, borderRadius: 10, border: '1px solid #e8e4df' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex-1 space-y-1.5 ml-2">
-                {pieData.map((d, i) => (
-                  <div key={d.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                      <span className="text-xs text-muted">{d.name}</span>
-                    </div>
-                    <span className="text-xs font-medium text-text">{Math.round(d.value / totalKcal * 100)}%</span>
-                  </div>
-                ))}
-              </div>
+      {/* Wide screens (inner display landscape, iPad, desktop): chart (with
+          the total in its middle) on the left; the four meals as a 2×2 grid of
+          collapsible tiles on the right, with the diet insights below them.
+          Phones keep the single column. */}
+      <div className="md:grid md:grid-cols-[340px_minmax(0,1fr)] md:gap-6 md:items-start">
+        <div>
+          {/* Total (shown inside the chart on wide screens) */}
+          <div className="bg-primary/10 rounded-2xl border border-primary/20 p-4 mb-3 flex items-center justify-between md:hidden">
+            <div className="flex items-center gap-2">
+              <Utensils size={18} className="text-primary" />
+              <span className="font-medium text-text">Total Intake</span>
             </div>
+            <span className="font-bold text-text text-lg">{totalKcal} kcal</span>
           </div>
-        )
-      })()}
 
-      {/* Copy yesterday */}
-      <div className="flex items-center justify-between mb-5">
-        <button
-          onClick={copyYesterday}
-          disabled={copying}
-          className="flex items-center gap-1.5 text-xs text-muted font-medium bg-card border border-border px-3 py-2 rounded-xl disabled:opacity-50 hover:border-primary/40 transition-colors"
-        >
-          <Copy size={13} />
-          {copying ? 'Copying…' : 'Copy yesterday\'s meals'}
-        </button>
-        {copyMsg && <p className="text-xs text-muted">{copyMsg}</p>}
-      </div>
+          {/* Pie chart */}
+          <IntakeChart
+            totalKcal={totalKcal}
+            pieData={MEAL_TYPES
+              .map(({ key, label, emoji }) => ({
+                name: emoji + ' ' + label,
+                value: meals.filter((m) => m.mealType === key).reduce((s, e) => s + e.kcal, 0),
+              }))
+              .filter((d) => d.value > 0)}
+          />
 
-      {loading ? (
-        <div className="text-center text-muted py-12">Loading…</div>
-      ) : (
-        <div className="space-y-4 pb-24">
-          {MEAL_TYPES.map(({ key, label, emoji }) => {
-            const entries = meals.filter((m) => m.mealType === key)
-            const sectionKcal = entries.reduce((s, e) => s + e.kcal, 0)
-            const isExpanded = expanded[key]
+          {/* Copy yesterday */}
+          <div className="flex items-center justify-between mb-5">
+            <button
+              onClick={copyYesterday}
+              disabled={copying}
+              className="flex items-center gap-1.5 text-xs text-muted font-medium bg-card border border-border px-3 py-2 rounded-xl disabled:opacity-50 hover:border-primary/40 transition-colors"
+            >
+              <Copy size={13} />
+              {copying ? 'Copying…' : 'Copy yesterday\'s meals'}
+            </button>
+            {copyMsg && <p className="text-xs text-muted">{copyMsg}</p>}
+          </div>
 
-            return (
-              <div key={key} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <button
-                    onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
-                    className="flex items-center gap-2 flex-1 min-w-0"
-                  >
-                    <span className="text-lg">{emoji}</span>
-                    <span className="font-semibold text-text">{label}</span>
-                    {entries.length > 0 && (
-                      <span className="text-xs text-muted">· {entries.length} items</span>
-                    )}
-                  </button>
-                  <div className="flex items-center gap-2 ml-2">
-                    <span className="text-sm text-muted">{sectionKcal} kcal</span>
+        </div>
+
+        {loading ? (
+          <div className="text-center text-muted py-12">Loading…</div>
+        ) : (
+          <div className="space-y-4 pb-24 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start">
+            {MEAL_TYPES.map(({ key, label, emoji }) => {
+              const entries = meals.filter((m) => m.mealType === key)
+              const sectionKcal = entries.reduce((s, e) => s + e.kcal, 0)
+              const isExpanded = expanded[key]
+
+              return (
+                <div key={key} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                  {/* Phone: one-line header */}
+                  <div className="flex items-center justify-between px-4 py-3 md:hidden">
                     <button
-                      onClick={() => handleAddMeal(key)}
-                      className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors text-primary"
-                    >
-                      <Plus size={18} />
-                    </button>
-                    <ChevronRight
-                      size={16}
-                      className={`text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                       onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
-                    />
+                      className="flex items-center gap-2 flex-1 min-w-0"
+                    >
+                      <span className="text-lg">{emoji}</span>
+                      <span className="font-semibold text-text">{label}</span>
+                      {entries.length > 0 && (
+                        <span className="text-xs text-muted">· {entries.length} items</span>
+                      )}
+                    </button>
+                    <div className="flex items-center gap-2 ml-2">
+                      <span className="text-sm text-muted">{sectionKcal} kcal</span>
+                      <button
+                        onClick={() => handleAddMeal(key)}
+                        className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors text-primary"
+                      >
+                        <Plus size={18} />
+                      </button>
+                      <ChevronRight
+                        size={16}
+                        className={`text-muted transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                        onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {isExpanded && (
-                  <>
-                <div className="divide-y divide-border border-t border-border">
-                  {entries.map((entry) => (
-                    <div key={entry.id} className="flex items-center justify-between px-4 py-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text truncate">{entry.food?.name ?? entry.customName}</p>
+                  {/* Wide: a larger tile with the meal's kcal as its headline */}
+                  <div className="hidden md:block px-4 pt-3 pb-4">
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
+                        className="flex items-center gap-2 min-w-0"
+                      >
+                        <span className="text-lg">{emoji}</span>
+                        <span className="font-semibold text-text">{label}</span>
+                      </button>
+                      <button
+                        onClick={() => handleAddMeal(key)}
+                        className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors text-primary"
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
+                      className="w-full mt-2 flex items-end justify-between text-left"
+                    >
+                      <div>
+                        <span className="text-2xl font-bold text-text">{sectionKcal}</span>
+                        <span className="text-xs text-muted"> kcal</span>
+                        <p className="text-xs text-muted mt-0.5">
+                          {entries.length > 0 ? `${entries.length} items` : 'Nothing logged'}
+                        </p>
+                      </div>
+                      <ChevronRight
+                        size={16}
+                        className={`text-muted transition-transform mb-0.5 ${isExpanded ? 'rotate-90' : ''}`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Collapsed by default; tap the header to expand */}
+                  <div className={`divide-y divide-border border-t border-border ${isExpanded ? '' : 'hidden'}`}>
+                    {entries.map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between px-4 md:px-3 py-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-text truncate md:whitespace-normal md:break-words">{entry.food?.name ?? entry.customName}</p>
+                          {editingId === entry.id ? (
+                            <div className="flex items-center gap-2 mt-1">
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                value={editQty}
+                                onChange={(e) => setEditQty(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && confirmEdit(entry.id)}
+                                className="w-20 border border-border rounded-lg px-2 py-1 text-xs text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                autoFocus
+                              />
+                              <span className="text-xs text-muted">{entry.food ? entry.food.servingUnit : 'kcal'}</span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted">
+                              {entry.food ? `${entry.quantity} ${entry.food.servingUnit} · ` : ''}{entry.kcal} kcal
+                            </p>
+                          )}
+                        </div>
                         {editingId === entry.id ? (
-                          <div className="flex items-center gap-2 mt-1">
-                            <input
-                              type="number"
-                              inputMode="decimal"
-                              value={editQty}
-                              onChange={(e) => setEditQty(e.target.value)}
-                              onKeyDown={(e) => e.key === 'Enter' && confirmEdit(entry.id)}
-                              className="w-20 border border-border rounded-lg px-2 py-1 text-xs text-text bg-bg focus:outline-none focus:ring-2 focus:ring-primary/40"
-                              autoFocus
-                            />
-                            <span className="text-xs text-muted">{entry.food ? entry.food.servingUnit : 'kcal'}</span>
+                          <div className="flex items-center gap-1 md:gap-0 ml-3 md:ml-2 flex-shrink-0">
+                            <button
+                              onClick={() => confirmEdit(entry.id)}
+                              className="p-2 rounded-lg hover:bg-primary/10 transition-colors min-h-[40px] min-w-[40px] md:min-w-[34px] flex items-center justify-center"
+                            >
+                              <Check size={16} className="text-primary" />
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="p-2 rounded-lg hover:bg-bg transition-colors min-h-[40px] min-w-[40px] md:min-w-[34px] flex items-center justify-center"
+                            >
+                              <X size={16} className="text-muted" />
+                            </button>
                           </div>
                         ) : (
-                          <p className="text-xs text-muted">
-                            {entry.food ? `${entry.quantity} ${entry.food.servingUnit} · ` : ''}{entry.kcal} kcal
-                          </p>
+                          <div className="flex items-center gap-1 md:gap-0 ml-3 md:ml-2 flex-shrink-0">
+                            <button
+                              onClick={() => startEdit(entry)}
+                              className="p-2 rounded-lg hover:bg-bg transition-colors min-h-[40px] min-w-[40px] md:min-w-[34px] flex items-center justify-center"
+                            >
+                              <Pencil size={15} className="text-muted" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.currentTarget.blur(); handleDelete(entry.id) }}
+                              className="p-2 rounded-lg hover:bg-danger/10 transition-colors min-h-[40px] min-w-[40px] md:min-w-[34px] flex items-center justify-center"
+                            >
+                              <Trash2 size={16} className="text-danger" />
+                            </button>
+                          </div>
                         )}
                       </div>
-                      {editingId === entry.id ? (
-                        <div className="flex items-center gap-1 ml-3">
-                          <button
-                            onClick={() => confirmEdit(entry.id)}
-                            className="p-2 rounded-lg hover:bg-primary/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-                          >
-                            <Check size={16} className="text-primary" />
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="p-2 rounded-lg hover:bg-bg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-                          >
-                            <X size={16} className="text-muted" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 ml-3">
-                          <button
-                            onClick={() => startEdit(entry)}
-                            className="p-2 rounded-lg hover:bg-bg transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-                          >
-                            <Pencil size={15} className="text-muted" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.currentTarget.blur(); handleDelete(entry.id) }}
-                            className="p-2 rounded-lg hover:bg-danger/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-                          >
-                            <Trash2 size={16} className="text-danger" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-
-                  </>
-                )}
-
-              </div>
-            )
-          })}
-          {(() => {
-            const insights = analyzeDiet(meals, totalKcal)
-            if (!insights) return null
-            return (
-              <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-4">
-                <p className="text-[11px] font-medium text-muted uppercase tracking-wide mb-3">Today's Diet</p>
-                <div className="space-y-2.5">
-                  {insights.map((ins, i) => (
-                    <div key={i} className="flex items-start gap-2.5">
-                      <span className="text-sm leading-none mt-0.5 flex-shrink-0">{ins.icon}</span>
-                      <p className={`text-xs leading-relaxed ${
-                        ins.type === 'positive' ? 'text-text' : ins.type === 'warning' ? 'text-[#b8865e]' : 'text-muted'
-                      }`}>{ins.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
-        </div>
-      )}
+              )
+            })}
+            {/* Below the meals; spans both tile columns on wide screens */}
+            {insights && <DietInsights insights={insights} className="md:col-span-2" />}
+          </div>
+        )}
+      </div>
 
       {addSheet.open && (
 

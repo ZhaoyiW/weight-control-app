@@ -48,18 +48,32 @@ body {
   padding-right: env(safe-area-inset-right, 0px);
 }
 
-/* Side nav pill (56px wide): centered in the right status-bar column when
-   it's wide enough, otherwise 12px from the edge. */
+:root {
+  /* Side nav pill (56px wide): centered in the right status-bar column when
+     it's wide enough, otherwise 12px from the edge. */
+  --side-nav-right: max(12px, calc((env(safe-area-inset-right, 0px) - 56px) / 2));
+  /* Right padding that ends the content area at the pill's left edge, so
+     with the page's own 16px padding the gap to the pill matches the 16px
+     left margin. With no status-bar column (inset 0, e.g. in Safari) it's
+     0 and the pill floats over the content instead. */
+  --side-nav-gutter: min(env(safe-area-inset-right, 0px), calc(var(--side-nav-right) + 56px));
+}
+
 @utility side-nav-pos {
-  right: max(12px, calc((env(safe-area-inset-right, 0px) - 56px) / 2));
+  right: var(--side-nav-right);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
 }
 
-/* Content runs right up to the status-bar column (where the pill sits).
-   With no such column (e.g. in Safari) the pill floats over the content,
-   so add scroll room at the bottom to lift the last rows above it: the
-   calc is 320px when the right inset is 0 and clamps to 0 otherwise. */
+/* When the pill floats over the content, add scroll room at the bottom to
+   lift the last rows above it: the calc is 320px when the right inset is 0
+   and clamps to 0 otherwise. */
 @utility rail-gutter {
-  padding-right: env(safe-area-inset-right, 0px);
+  padding-right: var(--side-nav-gutter);
   padding-bottom: max(0px, calc(320px - env(safe-area-inset-right, 0px) * 1000));
+}
+
+/* A floating action button just left of the pill, 16px from it */
+@utility side-nav-fab {
+  right: calc(max(var(--side-nav-gutter), calc(var(--side-nav-right) + 56px)) + 1rem);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
 }
