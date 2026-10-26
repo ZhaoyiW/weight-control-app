@@ -376,7 +376,7 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
   const prevDate = shiftDate(date, -1)
 
   return (
-    <div className={`mx-auto px-4 ${showDualDay ? 'max-w-4xl' : 'max-w-md'} ${isCompactHeight ? 'pt-3' : 'pt-6'} ${navPosition === 'side' ? 'pb-6' : 'pb-24'}`}>
+    <div className={`mx-auto px-4 duo-inner-l:px-6 ${showDualDay ? 'max-w-4xl' : 'max-w-md'} ${isCompactHeight ? 'pt-3' : 'pt-6'} ${navPosition === 'side' ? 'pb-6' : 'pb-24'}`}>
       {/* Header with date nav */}
       <div className={isCompactHeight ? 'mb-3' : 'mb-6'}>
         <p className="text-muted text-sm text-center">{greeting}</p>
