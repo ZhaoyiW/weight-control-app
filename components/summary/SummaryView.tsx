@@ -475,13 +475,14 @@ export default function SummaryView() {
                 {(() => {
                   const d = cumulative.cumulativeDeficit
                   const label = d !== 0 ? `${d > 0 ? '+' : ''}${d.toLocaleString()} kcal` : '0 kcal'
-                  // Sized to fill the card's width: at this weight a character is
-                  // ~0.44em wide, so 205/length cqw spans ~93% of it. Capped at 72px.
+                  // On the Duo inner display in landscape, sized to fill the card's
+                  // width: at this weight a character is ~0.44em wide, so
+                  // 205/length cqw spans ~93% of it (capped at 72px). Elsewhere 36px.
                   return (
                     <div className="@container">
                       <p
-                        className={`whitespace-nowrap font-bold tracking-tight leading-none mb-2 text-center ${d <= 0 ? 'text-secondary' : 'text-danger'}`}
-                        style={{ fontSize: `min(${(205 / label.length).toFixed(1)}cqw, 4.5rem)` }}
+                        className={`text-4xl duo-inner-l:text-(length:--fill-size) whitespace-nowrap font-bold tracking-tight leading-none mb-2 text-center ${d <= 0 ? 'text-secondary' : 'text-danger'}`}
+                        style={{ '--fill-size': `min(${(205 / label.length).toFixed(1)}cqw, 4.5rem)` } as React.CSSProperties}
                       >
                         {label}
                       </p>
