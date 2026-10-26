@@ -434,10 +434,20 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
         </div>
       )}
 
-      {/* Ring chart + stat grid. On inner-landscape, today and the day before
-          render side by side instead of just today. */}
+      {/* Ring chart + stat grid. On inner-landscape, the day before (left)
+          and today (right) render side by side instead of just today. */}
       {showDualDay ? (
         <div className="grid grid-cols-2 gap-6">
+          <div>
+            <p className="text-center text-sm font-semibold text-muted mb-3">
+              {isToday ? 'Yesterday' : formatDate(prevDate)}
+            </p>
+            {prevDaySummary ? (
+              <DayPanel summary={prevDaySummary} isCompactHeight={isCompactHeight} interactive={false} />
+            ) : (
+              <p className="text-center text-xs text-muted py-10">Loading…</p>
+            )}
+          </div>
           <div>
             <p className="text-center text-sm font-semibold text-muted mb-3">
               {isToday ? 'Today' : formatDate(date)}
@@ -450,16 +460,6 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
               onTapExercise={() => setExerciseSheet(true)}
               onTapResting={() => setRestingSheet(true)}
             />
-          </div>
-          <div>
-            <p className="text-center text-sm font-semibold text-muted mb-3">
-              {isToday ? 'Yesterday' : formatDate(prevDate)}
-            </p>
-            {prevDaySummary ? (
-              <DayPanel summary={prevDaySummary} isCompactHeight={isCompactHeight} interactive={false} />
-            ) : (
-              <p className="text-center text-xs text-muted py-10">Loading…</p>
-            )}
           </div>
         </div>
       ) : (
