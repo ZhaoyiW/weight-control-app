@@ -113,7 +113,7 @@ export default function FoodView() {
   const noLocalResults = !loading && foods.length === 0 && query.trim()
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-6 duo-inner-l:px-6">
+    <div className="max-w-md md:max-w-5xl mx-auto px-4 pt-6 duo-inner-l:px-6">
       <h1 className="text-2xl font-bold text-text mb-5">Food Library 🍎</h1>
 
       {/* Search */}
@@ -129,7 +129,7 @@ export default function FoodView() {
       </div>
 
       {/* Category filter */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide md:flex-wrap md:overflow-visible">
         <button
           onClick={() => setActiveCategory(null)}
           className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium transition-colors ${
@@ -154,7 +154,9 @@ export default function FoodView() {
       {loading ? (
         <div className="text-center text-muted py-12">Loading…</div>
       ) : (
-        <div className="space-y-2 pb-24">
+        // Wide screens: the library as a 2-column grid (3 on large screens);
+        // search results and empty states span the full width
+        <div className="space-y-2 pb-24 md:space-y-0 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-3 md:content-start">
           {/* Local results */}
           {foods.map((food) => (
             <div
@@ -193,7 +195,7 @@ export default function FoodView() {
 
           {/* No local results → search online */}
           {noLocalResults && !showOnline && (
-            <div className="text-center py-8">
+            <div className="text-center py-8 md:col-span-full">
               <p className="text-muted text-sm mb-4">No results in your library</p>
               <button
                 onClick={searchOnline}
@@ -206,12 +208,12 @@ export default function FoodView() {
           )}
 
           {searchingOnline && (
-            <p className="text-xs text-muted text-center py-6">🔍 Looking up with AI…</p>
+            <p className="text-xs text-muted text-center py-6 md:col-span-full">🔍 Looking up with AI…</p>
           )}
 
           {/* Online results */}
           {showOnline && !searchingOnline && onlineResults.length > 0 && (
-            <div className="mt-2">
+            <div className="mt-2 md:col-span-full">
               <p className="text-xs text-muted font-medium mb-2 px-1">Online results — tap to add to library</p>
               {onlineResults.map((food, i) => (
                 <div
@@ -237,12 +239,12 @@ export default function FoodView() {
           )}
 
           {showOnline && !searchingOnline && onlineResults.length === 0 && (
-            <p className="text-xs text-muted text-center py-4">No online results found</p>
+            <p className="text-xs text-muted text-center py-4 md:col-span-full">No online results found</p>
           )}
 
           {/* Empty state (no search) */}
           {!query.trim() && foods.length === 0 && (
-            <div className="text-center text-muted py-12">
+            <div className="text-center text-muted py-12 md:col-span-full">
               <p className="text-lg mb-2">No foods yet</p>
               <p className="text-sm">Add your first food item below.</p>
             </div>
