@@ -398,7 +398,7 @@ export default function SummaryView() {
   // Duo inner display in landscape: the page fits one screen, with the chart
   // taking whatever height the controls and cards leave
   return (
-    <div className="max-w-md md:max-w-5xl mx-auto px-4 pt-6 pb-24 duo-inner-l:h-full duo-inner-l:flex duo-inner-l:flex-col duo-inner-l:pt-0 duo-inner-l:pb-4">
+    <div className="max-w-md md:max-w-5xl mx-auto px-4 pt-6 pb-24 duo-inner-l:h-full duo-inner-l:flex duo-inner-l:flex-col duo-inner-l:pt-0 duo-inner-l:pb-4 duo-inner-l:px-6">
 
       {/* Range controls: stacked on phones; one row on wide screens */}
       <div className="md:flex md:items-start md:gap-4 md:mb-4 duo-inner-l:mb-3 duo-inner-l:flex-shrink-0">

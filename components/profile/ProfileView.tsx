@@ -150,7 +150,7 @@ function ScoreRing({ score }: { score: number }) {
   const color = score >= 75 ? '#a8b5a2' : score >= 50 ? '#D4B896' : '#c4847a'
 
   return (
-    <svg width={72} height={72} viewBox="0 0 72 72">
+    <svg width={72} height={72} viewBox="0 0 72 72" className="flex-shrink-0 md:w-24 md:h-24">
       <circle cx={36} cy={36} r={r} fill="none" stroke="#f0ece8" strokeWidth={6} />
       <circle
         cx={36} cy={36} r={r}
@@ -314,8 +314,14 @@ export default function ProfileView() {
   const pace = dailyDeficit !== null ? getPaceFeedback(dailyDeficit) : null
   const hasGoal = currentWeight !== null && goalWeight !== null && goalDays !== null && dailyDeficit !== null
 
+  // Wide screens (inner display landscape, iPad, desktop): profile, goal and
+  // goal tracker on the left; the AI assessment on the right, stretched to at
+  // least the left column's height. On the Duo inner
+  // display in landscape the page fits one screen, centered vertically, and
+  // each column scrolls inside itself if it runs long. Phones keep the single
+  // column.
   return (
-    <div className="max-w-md mx-auto px-4 pt-6 pb-24">
+    <div className="max-w-md md:max-w-5xl mx-auto px-4 pt-6 pb-24 duo-inner-l:h-full duo-inner-l:flex duo-inner-l:flex-col duo-inner-l:pt-0 duo-inner-l:pb-4 duo-inner-l:px-6">
 
       {message && (
         <div className="bg-secondary/15 border border-secondary/30 rounded-xl p-3 mb-4 text-sm text-text text-center">
@@ -323,6 +329,8 @@ export default function ProfileView() {
         </div>
       )}
 
+      <div className="md:grid md:grid-cols-2 md:gap-5 md:items-stretch duo-inner-l:min-h-0 duo-inner-l:my-auto duo-inner-l:grid-rows-[minmax(0,1fr)]">
+      <div className="md:[&>*:last-child]:mb-0 duo-inner-l:max-h-full duo-inner-l:overflow-y-auto">
       {/* ── Header: name + BMI ─────────────────────────────── */}
       <div className="bg-card rounded-2xl border border-border shadow-sm px-4 pt-4 pb-2 mb-3">
         <div className="flex items-center justify-between mb-3">
@@ -458,8 +466,10 @@ export default function ProfileView() {
         </div>
       )}
 
+      </div>
+
       {/* ── AI Health Assessment ──────────────────────────────── */}
-      <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-5 mb-3">
+      <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-5 mb-3 md:mb-0 duo-inner-l:max-h-full duo-inner-l:overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Sparkles size={15} className="text-primary" />
@@ -525,6 +535,7 @@ export default function ProfileView() {
         ) : (
           <p className="text-xs text-muted italic text-center py-4">Loading assessment…</p>
         )}
+      </div>
       </div>
 
       {/* ── Edit Personal Info sheet ──────────────────────────── */}

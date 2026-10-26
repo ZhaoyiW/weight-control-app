@@ -113,7 +113,7 @@ export default function FoodView() {
   const noLocalResults = !loading && foods.length === 0 && query.trim()
 
   return (
-    <div className="max-w-md mx-auto px-4 pt-6">
+    <div className="max-w-md mx-auto px-4 pt-6 duo-inner-l:px-6">
       <h1 className="text-2xl font-bold text-text mb-5">Food Library 🍎</h1>
 
       {/* Search */}

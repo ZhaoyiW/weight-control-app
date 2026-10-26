@@ -328,7 +328,7 @@ export default function MealsView() {
   const [showCalendar, setShowCalendar] = useState(false)
 
   return (
-    <div className="max-w-md md:max-w-5xl mx-auto px-4 pt-6">
+    <div className="max-w-md md:max-w-5xl mx-auto px-4 pt-6 duo-inner-l:px-6">
       {/* Date selector */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
