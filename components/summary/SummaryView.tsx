@@ -300,10 +300,10 @@ export default function SummaryView() {
       const oldest = dates[dates.length - 1]
       try {
         const [results, cData] = await Promise.all([
-          Promise.all(dates.map(d => fetch(`/api/summary/${d}`).then(r => r.json()))),
+          fetch(`/api/summary/range?from=${oldest}&to=${mostRecent}`).then(r => r.json()),
           fetch(`/api/cumulative-deficit?date=${mostRecent}&from=${oldest}`).then(r => r.json()),
         ])
-        setSummaries(results)
+        setSummaries(Array.isArray(results) ? results : [])
         setCumulative(cData)
       } catch {
         setSummaries([])
