@@ -472,13 +472,22 @@ export default function SummaryView() {
             <p className="text-sm font-medium text-muted mb-2">{status.headline}</p>
             {cumulative && cumulative.cumulativeDeficit !== null ? (
               <>
-                <p className={`text-4xl duo-inner-l:text-3xl font-bold tracking-tight leading-none mb-2 text-center ${
-                  cumulative.cumulativeDeficit <= 0 ? 'text-secondary' : 'text-danger'
-                }`}>
-                  {cumulative.cumulativeDeficit !== 0
-                    ? `${cumulative.cumulativeDeficit > 0 ? '+' : ''}${cumulative.cumulativeDeficit.toLocaleString()} kcal`
-                    : '0 kcal'}
-                </p>
+                {(() => {
+                  const d = cumulative.cumulativeDeficit
+                  const label = d !== 0 ? `${d > 0 ? '+' : ''}${d.toLocaleString()} kcal` : '0 kcal'
+                  // Sized to fill the card's width: at this weight a character is
+                  // ~0.44em wide, so 205/length cqw spans ~93% of it. Capped at 72px.
+                  return (
+                    <div className="@container">
+                      <p
+                        className={`whitespace-nowrap font-bold tracking-tight leading-none mb-2 text-center ${d <= 0 ? 'text-secondary' : 'text-danger'}`}
+                        style={{ fontSize: `min(${(205 / label.length).toFixed(1)}cqw, 4.5rem)` }}
+                      >
+                        {label}
+                      </p>
+                    </div>
+                  )
+                })()}
                 <p className="text-sm text-muted mb-1">
                   ≈ {Math.abs(cumulative.estimatedFatLoss)} kg estimated fat {cumulative.cumulativeDeficit <= 0 ? 'loss' : 'gain'}
                 </p>

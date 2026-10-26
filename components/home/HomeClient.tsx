@@ -46,9 +46,7 @@ interface DayPanelProps {
 }
 
 // Ring chart + Weight/BMR/Exercise/Resting Energy grid for one day. Used twice
-// side-by-side (today + yesterday) on inner-landscape; the second instance is
-// read-only (interactive=false) — logging past days still goes through the
-// normal date-nav arrows rather than this comparison view.
+// side-by-side (yesterday + today) on inner-landscape, both editable.
 function DayPanel({ summary, isCompactHeight, interactive, onTapWeight, onTapExercise, onTapResting }: DayPanelProps) {
   const deficitColor =
     summary.deficit === null
@@ -245,6 +243,11 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
   const [weightSheet, setWeightSheet] = useState(false)
   const [exerciseSheet, setExerciseSheet] = useState(false)
   const [restingSheet, setRestingSheet] = useState(false)
+  // Day the log sheets save to: the selected date, or the day before it when
+  // editing the left panel of the dual-day view
+  const [editDate, setEditDate] = useState<string | null>(null)
+  // Bumped after saving to the previous day, to refetch its panel
+  const [prevDayVersion, setPrevDayVersion] = useState(0)
   const [weightValue, setWeightValue] = useState(initialSummary.weight?.toString() ?? '')
   const [exerciseValue, setExerciseValue] = useState(
     defaultInputValue(initialSummary.exerciseKcal, initialSummary.avgExerciseKcal7d)
@@ -285,7 +288,7 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       .then((data: DailySummary) => { if (!cancelled) setPrevDaySummary(data) })
       .catch(() => { if (!cancelled) setPrevDaySummary(null) })
     return () => { cancelled = true }
-  }, [showDualDay, date])
+  }, [showDualDay, date, prevDayVersion])
 
   useEffect(() => {
     const onTabVisit = (e: Event) => {
@@ -323,17 +326,18 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       await fetch('/api/weight', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, weight: Number(weightValue) }),
+        body: JSON.stringify({ date: editDate ?? date, weight: Number(weightValue) }),
       })
       setMessage('Weight saved!')
       setWeightSheet(false)
       fetchSummary(date)
+      if (editDate && editDate !== date) setPrevDayVersion((v) => v + 1)
     } catch {
       setMessage('Failed to save weight')
     } finally {
       setLoading(false)
     }
-  }, [weightValue, date, fetchSummary])
+  }, [weightValue, date, editDate, fetchSummary])
 
   const handleExerciseSubmit = useCallback(async () => {
     if (!exerciseValue || isNaN(Number(exerciseValue))) return
@@ -342,17 +346,18 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       await fetch('/api/activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, exerciseKcal: Number(exerciseValue) }),
+        body: JSON.stringify({ date: editDate ?? date, exerciseKcal: Number(exerciseValue) }),
       })
       setMessage('Exercise logged!')
       setExerciseSheet(false)
       fetchSummary(date)
+      if (editDate && editDate !== date) setPrevDayVersion((v) => v + 1)
     } catch {
       setMessage('Failed to save exercise')
     } finally {
       setLoading(false)
     }
-  }, [exerciseValue, date, fetchSummary])
+  }, [exerciseValue, date, editDate, fetchSummary])
 
   const handleRestingSubmit = useCallback(async () => {
     if (!restingValue || isNaN(Number(restingValue))) return
@@ -361,19 +366,30 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       await fetch('/api/activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, restingKcal: Number(restingValue) }),
+        body: JSON.stringify({ date: editDate ?? date, restingKcal: Number(restingValue) }),
       })
       setMessage('Resting energy logged!')
       setRestingSheet(false)
       fetchSummary(date)
+      if (editDate && editDate !== date) setPrevDayVersion((v) => v + 1)
     } catch {
       setMessage('Failed to save resting energy')
     } finally {
       setLoading(false)
     }
-  }, [restingValue, date, fetchSummary])
+  }, [restingValue, date, editDate, fetchSummary])
 
   const prevDate = shiftDate(date, -1)
+
+  // Open a log sheet for the day shown in a panel, prefilled from that day
+  const openEditor = (sheet: 'weight' | 'exercise' | 'resting', day: DailySummary) => {
+    setEditDate(day.date)
+    if (sheet === 'weight') { setWeightValue(day.weight?.toString() ?? ''); setWeightSheet(true) }
+    if (sheet === 'exercise') { setExerciseValue(defaultInputValue(day.exerciseKcal, day.avgExerciseKcal7d)); setExerciseSheet(true) }
+    if (sheet === 'resting') { setRestingValue(defaultInputValue(day.restingKcal, day.avgRestingKcal7d)); setRestingSheet(true) }
+  }
+  const editSummary = editDate && editDate !== date && prevDaySummary ? prevDaySummary : summary
+  const editLabel = editDate && editDate !== date ? ` · ${isToday ? 'Yesterday' : formatDate(prevDate)}` : ''
 
   return (
     <div className={`mx-auto px-4 duo-inner-l:px-6 ${showDualDay ? 'max-w-4xl' : 'max-w-md'} ${isCompactHeight ? 'pt-3' : 'pt-6'} ${navPosition === 'side' ? 'pb-6' : 'pb-24'}`}>
@@ -443,7 +459,14 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
               {isToday ? 'Yesterday' : formatDate(prevDate)}
             </p>
             {prevDaySummary ? (
-              <DayPanel summary={prevDaySummary} isCompactHeight={isCompactHeight} interactive={false} />
+              <DayPanel
+                summary={prevDaySummary}
+                isCompactHeight={isCompactHeight}
+                interactive
+                onTapWeight={() => openEditor('weight', prevDaySummary)}
+                onTapExercise={() => openEditor('exercise', prevDaySummary)}
+                onTapResting={() => openEditor('resting', prevDaySummary)}
+              />
             ) : (
               <p className="text-center text-xs text-muted py-10">Loading…</p>
             )}
@@ -456,9 +479,9 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
               summary={summary}
               isCompactHeight={isCompactHeight}
               interactive
-              onTapWeight={() => setWeightSheet(true)}
-              onTapExercise={() => setExerciseSheet(true)}
-              onTapResting={() => setRestingSheet(true)}
+              onTapWeight={() => openEditor('weight', summary)}
+              onTapExercise={() => openEditor('exercise', summary)}
+              onTapResting={() => openEditor('resting', summary)}
             />
           </div>
         </div>
@@ -467,14 +490,14 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
           summary={summary}
           isCompactHeight={isCompactHeight}
           interactive
-          onTapWeight={() => setWeightSheet(true)}
-          onTapExercise={() => setExerciseSheet(true)}
-          onTapResting={() => setRestingSheet(true)}
+          onTapWeight={() => openEditor('weight', summary)}
+          onTapExercise={() => openEditor('exercise', summary)}
+          onTapResting={() => openEditor('resting', summary)}
         />
       )}
 
       {/* Weight Sheet */}
-      <Sheet isOpen={weightSheet} onClose={() => setWeightSheet(false)} title="Log Weight">
+      <Sheet isOpen={weightSheet} onClose={() => setWeightSheet(false)} title={`Log Weight${editLabel}`}>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-text mb-2">Weight (kg)</label>
@@ -500,11 +523,11 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       </Sheet>
 
       {/* Exercise Sheet */}
-      <Sheet isOpen={exerciseSheet} onClose={() => setExerciseSheet(false)} title="Log Exercise">
+      <Sheet isOpen={exerciseSheet} onClose={() => setExerciseSheet(false)} title={`Log Exercise${editLabel}`}>
         <div className="space-y-4">
-          {summary.exerciseKcal === null && summary.avgExerciseKcal7d !== null && (
+          {editSummary.exerciseKcal === null && editSummary.avgExerciseKcal7d !== null && (
             <p className="text-xs text-muted -mt-2">
-              Prefilled with your 7-day average ({summary.avgExerciseKcal7d} kcal) — adjust if today's different.
+              Prefilled with your 7-day average ({editSummary.avgExerciseKcal7d} kcal) — adjust if today's different.
             </p>
           )}
           <div>
@@ -531,14 +554,14 @@ export default function HomeClient({ summary: initialSummary }: HomeClientProps)
       </Sheet>
 
       {/* Resting Energy Sheet */}
-      <Sheet isOpen={restingSheet} onClose={() => setRestingSheet(false)} title="Log Resting Energy">
+      <Sheet isOpen={restingSheet} onClose={() => setRestingSheet(false)} title={`Log Resting Energy${editLabel}`}>
         <div className="space-y-4">
           <p className="text-xs text-muted -mt-2">
             From your Apple Watch/iPhone Health app (Health → Resting Energy). Once logged, this replaces the calculated BMR in today&apos;s burn total.
           </p>
-          {summary.restingKcal === null && summary.avgRestingKcal7d !== null && (
+          {editSummary.restingKcal === null && editSummary.avgRestingKcal7d !== null && (
             <p className="text-xs text-muted -mt-2">
-              Prefilled with your 7-day average ({summary.avgRestingKcal7d} kcal) — adjust if today's different.
+              Prefilled with your 7-day average ({editSummary.avgRestingKcal7d} kcal) — adjust if today's different.
             </p>
           )}
           <div>

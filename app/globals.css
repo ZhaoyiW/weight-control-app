@@ -60,10 +60,10 @@ body {
      it's wide enough, otherwise 12px from the edge. */
   --side-nav-right: max(12px, calc((env(safe-area-inset-right, 0px) - 56px) / 2));
   /* Right padding that ends the content area at the pill's left edge, so
-     with the page's own 16px padding the gap to the pill matches the 16px
-     left margin. With no status-bar column (inset 0, e.g. in Safari) it's
-     0 and the pill floats over the content instead. */
-  --side-nav-gutter: min(env(safe-area-inset-right, 0px), calc(var(--side-nav-right) + 56px));
+     with the page's own side padding the gap to the pill always matches the
+     left margin, however wide the status-bar column turns out to be (or
+     with none, e.g. in Safari). */
+  --side-nav-gutter: calc(var(--side-nav-right) + 56px);
 }
 
 @utility side-nav-pos {
@@ -71,16 +71,15 @@ body {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
 }
 
-/* When the pill floats over the content, add scroll room at the bottom to
-   lift the last rows above it: the calc is 320px when the right inset is 0
-   and clamps to 0 otherwise. */
+/* Content area on duo-rail displays: clear of the pill on the right, and
+   of the home indicator at the bottom */
 @utility rail-gutter {
   padding-right: var(--side-nav-gutter);
-  padding-bottom: max(0px, calc(320px - env(safe-area-inset-right, 0px) * 1000));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* A floating action button just left of the pill, 16px from it */
 @utility side-nav-fab {
-  right: calc(max(var(--side-nav-gutter), calc(var(--side-nav-right) + 56px)) + 1rem);
+  right: calc(var(--side-nav-gutter) + 1rem);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
 }
