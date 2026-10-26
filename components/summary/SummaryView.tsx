@@ -204,9 +204,23 @@ function ChartTooltip({ active, payload, label }: {
   )
 }
 
+// Wide screens (same 768px breakpoint as Tailwind's md:) show the chart's axes
+function useIsWide() {
+  const [wide, setWide] = useState(false)
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px)')
+    const update = () => setWide(mql.matches)
+    update()
+    mql.addEventListener('change', update)
+    return () => mql.removeEventListener('change', update)
+  }, [])
+  return wide
+}
+
 // ─────────────────────────────────────────────────────────────────
 
 export default function SummaryView() {
+  const isWide = useIsWide()
   const [range, setRange] = useState<RangeMode>(7)
   const [customStart, setCustomStart] = useState<string>(() => getPastDates(30).at(-1)!)
   const [customEnd, setCustomEnd] = useState<string>(() => today())
@@ -381,11 +395,15 @@ export default function SummaryView() {
 
   // ── render ─────────────────────────────────────────────────────
 
+  // Duo inner display in landscape: the page fits one screen, with the chart
+  // taking whatever height the controls and cards leave
   return (
-    <div className="max-w-md mx-auto px-4 pt-6 pb-24">
+    <div className="max-w-md md:max-w-5xl mx-auto px-4 pt-6 pb-24 duo-inner-l:h-full duo-inner-l:flex duo-inner-l:flex-col duo-inner-l:pt-0 duo-inner-l:pb-4">
 
+      {/* Range controls: stacked on phones; one row on wide screens */}
+      <div className="md:flex md:items-start md:gap-4 md:mb-4 duo-inner-l:mb-3 duo-inner-l:flex-shrink-0">
       {/* Segmented control */}
-      <div className="flex bg-bg rounded-2xl p-1 mb-4 border border-border">
+      <div className="flex bg-bg rounded-2xl p-1 mb-4 border border-border md:mb-0 md:w-[380px] md:flex-shrink-0">
         {([7, 14, 30, 'custom'] as RangeMode[]).map(r => (
           <button key={r} onClick={() => setRange(r)}
             className={`flex-1 py-2 rounded-xl text-sm font-medium transition-all min-h-[40px] ${
@@ -398,7 +416,7 @@ export default function SummaryView() {
 
       {/* Custom range pickers */}
       {range === 'custom' && (
-        <div className="mb-4">
+        <div className="mb-4 md:mb-0 md:flex-1 md:max-w-sm md:ml-auto md:pt-1">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowStartPicker(true)}
@@ -422,6 +440,7 @@ export default function SummaryView() {
           )}
         </div>
       )}
+      </div>
 
       {showStartPicker && (
         <DatePicker
@@ -444,13 +463,16 @@ export default function SummaryView() {
       {loading ? (
         <div className="text-center text-muted py-16">Loading…</div>
       ) : (
-        <>
+        // Wide screens: the chart across the top; summary, metabolic and
+        // pattern insights side by side underneath (reordered with md:order-*).
+        // Phones keep the DOM order: summary, chart, patterns, metabolic.
+        <div className="md:grid md:grid-cols-3 md:gap-5 duo-inner-l:flex-1 duo-inner-l:min-h-0 duo-inner-l:grid-rows-[minmax(0,1fr)_200px] duo-inner-l:gap-3">
           {/* ── Merged summary card ── */}
-          <div className="bg-card rounded-2xl border border-border shadow-sm px-5 pt-4 pb-3 mb-4">
+          <div className="bg-card rounded-2xl border border-border shadow-sm px-5 pt-4 pb-3 mb-4 md:mb-0 md:order-2 duo-inner-l:h-full duo-inner-l:overflow-y-auto duo-inner-l:pt-3">
             <p className="text-sm font-medium text-muted mb-2">{status.headline}</p>
             {cumulative && cumulative.cumulativeDeficit !== null ? (
               <>
-                <p className={`text-4xl font-bold tracking-tight leading-none mb-2 text-center ${
+                <p className={`text-4xl duo-inner-l:text-3xl font-bold tracking-tight leading-none mb-2 text-center ${
                   cumulative.cumulativeDeficit <= 0 ? 'text-secondary' : 'text-danger'
                 }`}>
                   {cumulative.cumulativeDeficit !== 0
@@ -471,7 +493,7 @@ export default function SummaryView() {
 
           {/* ── Dual-axis chart card ── */}
           {hasData && (
-            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden mb-4">
+            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden mb-4 md:mb-0 md:order-1 md:col-span-3 duo-inner-l:h-full duo-inner-l:flex duo-inner-l:flex-col">
               {/* Header */}
               <div className="px-5 pt-5 pb-2 flex items-center justify-between">
                 <h2 className="font-semibold text-text">Deficit &amp; Weight</h2>
@@ -500,11 +522,11 @@ export default function SummaryView() {
               </div>
 
               {/* Chart */}
-              <div className="pb-2">
-                <ResponsiveContainer width="100%" height={220}>
+              <div className="pb-2 h-[220px] md:h-[280px] duo-inner-l:h-auto duo-inner-l:flex-1 duo-inner-l:min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart
                     data={combinedData}
-                    margin={{ left: 24, right: 24, top: 4, bottom: 0 }}
+                    margin={isWide ? { left: 8, right: 8, top: 8, bottom: 0 } : { left: 24, right: 24, top: 4, bottom: 0 }}
                     onClick={(e) => {
                       const label = e?.activeLabel as string | undefined
                       if (label) setPinnedDate(prev => prev === label ? null : label)
@@ -549,19 +571,29 @@ export default function SummaryView() {
                       interval={xAxisInterval}
                     />
 
-                    {/* Left axis: weight (hidden labels, just domain) */}
+                    {/* Left axis: weight (kg). Labels only on wide screens */}
                     <YAxis
                       yAxisId="left"
                       orientation="left"
-                      hide
+                      hide={!isWide}
                       domain={['dataMin - 0.5', 'dataMax + 0.5']}
+                      width={44}
+                      tick={{ fontSize: 11, fill: '#a8b5a2' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v: number) => v.toFixed(1)}
                     />
 
-                    {/* Right axis: deficit (hidden) */}
+                    {/* Right axis: deficit (kcal). Labels only on wide screens */}
                     <YAxis
                       yAxisId="right"
                       orientation="right"
-                      hide
+                      hide={!isWide}
+                      width={48}
+                      tick={{ fontSize: 11, fill: '#9a9a9a' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v: number) => v.toLocaleString()}
                     />
 
                     <Tooltip
@@ -644,7 +676,7 @@ export default function SummaryView() {
 
           {/* ── Pattern Insights card ── */}
           {patternInsights.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-4 mb-4">
+            <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-4 mb-4 md:mb-0 md:order-4 duo-inner-l:h-full duo-inner-l:overflow-y-auto duo-inner-l:py-3">
               <p className="text-[11px] font-medium text-muted uppercase tracking-wide mb-3">Pattern Insights</p>
               <div className="space-y-3">
                 {patternInsights.map((p, i) => (
@@ -661,13 +693,13 @@ export default function SummaryView() {
 
           {/* ── AI Insight card ── */}
           {insight && (
-            <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-4">
+            <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-4 md:order-3 duo-inner-l:h-full duo-inner-l:overflow-y-auto duo-inner-l:py-3">
               <p className="text-[11px] font-medium text-muted uppercase tracking-wide mb-2">Metabolic Insight</p>
               <p className="text-sm font-medium text-text mb-1 leading-snug">{insight.text}</p>
               <p className="text-xs text-muted/70 leading-relaxed">{insight.sub}</p>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )
